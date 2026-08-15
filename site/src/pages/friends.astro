@@ -1,13 +1,163 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Placeholder from '../components/Placeholder.astro';
+import { SITE } from '../lib/site';
+
+interface Friend {
+  name: string;
+  url: string;
+  desc: string;
+  icon: string;
+  tags: string[];
+}
+
+const friends: Friend[] = [
+  {
+    name: '清风博客',
+    url: 'https://blog.myqfeng.top/',
+    desc: '爱整活，爱生活——本站导航布局与音乐播放器的设计参考',
+    icon: 'https://blog.myqfeng.top/assets/images/icon.png',
+    tags: ['Blog', '设计'],
+  },
+  {
+    name: '070219.xyz',
+    url: 'https://070219.xyz/',
+    desc: '明月清风的小屋——本站选中高亮与浅色配色的参考',
+    icon: 'https://070219.xyz/favicon.svg',
+    tags: ['Blog', '设计'],
+  },
+];
+
+const allTags = ['全部', ...new Set(friends.flatMap((f) => f.tags))];
 ---
 
 <BaseLayout title="友链">
-  <Placeholder
-    eyebrow="FRIENDS // 友链"
-    title="友链"
-    message="友链建设中"
-    hint="欢迎交换友链——先到 Gitee 打个招呼吧。"
-  />
+  <section class="container">
+    <div class="panel reveal-x">
+      <header class="page-head">
+        <p class="micro-label">FRIENDS // 友链</p>
+        <h1 class="display-title">友链</h1>
+        <p class="micro-label" style="margin-top: var(--sp-3);">这里是我的朋友们，欢迎互相访问交流 // {friends.length} 位</p>
+      </header>
+
+      <!-- 筛选：搜索 + 分类 -->
+      <div class="friend-filter">
+        <div class="friend-search">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m19.6 21-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3z"/></svg>
+          <input type="text" id="friends-search" placeholder="搜索友链…" autocomplete="off" />
+        </div>
+        <div class="friend-pills">
+          {
+            allTags.map((tag) => (
+              <button type="button" class="category-pill" data-tag={tag} data-active={tag === '全部' ? '' : undefined}>{tag}</button>
+            ))
+          }
+        </div>
+      </div>
+
+      <!-- 友链卡片 -->
+      <div class="friends-grid" id="friends-grid">
+        {
+          friends.map((f, i) => (
+            <a
+              class="friend-card reveal"
+              href={f.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-tags={f.tags.join(' ')}
+              data-hay={[f.name, f.desc, f.tags.join(' ')].join(' ')}
+              style={`--reveal-delay:${i * 60}ms`}
+            >
+              <div class="friend-avatar">
+                <img src={f.icon} alt={`${f.name} 图标`} loading="lazy" onerror="this.style.display='none'" />
+                <span class="friend-letter" aria-hidden="true">{f.name.slice(0, 1)}</span>
+              </div>
+              <div class="friend-info">
+                <div class="friend-top">
+                  <span class="friend-name">{f.name}</span>
+                  <svg class="friend-arrow" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m16 8.4-8.9 8.9q-.275.275-.7.275t-.7-.275t-.275-.7t.275-.7L14.6 7H7q-.425 0-.712-.288T6 6t.288-.712T7 5h10q.425 0 .713.288T18 6v10q0 .425-.288.713T17 17t-.712-.288T16 16z"/></svg>
+                </div>
+                <span class="friend-desc" title={f.desc}>{f.desc}</span>
+                <div class="friend-tags">
+                  {f.tags.map((tag) => <span class="friend-tag">{tag}</span>)}
+                </div>
+              </div>
+            </a>
+          ))
+        }
+      </div>
+
+      <!-- 申请友链说明 -->
+      <div class="friend-apply">
+        <h3 class="friend-apply-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" /></svg>
+          申请友链
+        </h3>
+        <div class="friend-apply-steps">
+          <div class="apply-step">
+            <span class="apply-num">1</span>
+            <div>
+              <p class="apply-title">添加本站友链</p>
+              <p class="apply-desc">请先在您的网站友链页面添加本站信息，字段见下方</p>
+            </div>
+          </div>
+          <div class="apply-step">
+            <span class="apply-num">2</span>
+            <div>
+              <p class="apply-title">提交申请</p>
+              <p class="apply-desc">在 <a href="https://gitee.com/yu_sparklerrr/blog_yu/issues" target="_blank" rel="noopener">Gitee 仓库 Issues</a> 提交友链申请，附上你的站点信息</p>
+            </div>
+          </div>
+          <div class="apply-step">
+            <span class="apply-num">3</span>
+            <div>
+              <p class="apply-title">等待通过</p>
+              <p class="apply-desc">我会在看到申请后尽快添加并回复</p>
+            </div>
+          </div>
+        </div>
+        <div class="friend-site-info">
+          <p class="micro-label">SITE INFO // 本站信息</p>
+          <div class="friend-site-grid">
+            <div><span class="info-key">名称</span><span class="info-val">{SITE.zh}（{SITE.en}）</span></div>
+            <div><span class="info-key">链接</span><span class="info-val">https://gitee.com/yu_sparklerrr/blog_yu</span></div>
+            <div><span class="info-key">简介</span><span class="info-val">{SITE.description}</span></div>
+            <div><span class="info-key">头像</span><span class="info-val">/favicon.png</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </BaseLayout>
+
+<script>
+  // 友链筛选（事件委托：搜索 + 分类标签）
+  document.addEventListener('input', (e) => {
+    const input = e.target as HTMLInputElement | null;
+    if (!input || input.id !== 'friends-search') return;
+    applyFriendFilter();
+  });
+  document.addEventListener('click', (e) => {
+    const pill = (e.target as HTMLElement).closest('.category-pill');
+    if (!pill || !pill.classList.contains('category-pill')) return;
+    document.querySelectorAll('.category-pill').forEach((p) => {
+      if (p === pill) p.setAttribute('data-active', '');
+      else p.removeAttribute('data-active');
+    });
+    applyFriendFilter();
+  });
+
+  function applyFriendFilter() {
+    const kw = ((document.getElementById('friends-search') as HTMLInputElement | null)?.value ?? '')
+      .trim()
+      .toLowerCase();
+    const activePill = document.querySelector('.category-pill[data-active]') as HTMLElement | null;
+    const tag = activePill?.dataset.tag ?? '全部';
+    document.querySelectorAll<HTMLElement>('#friends-grid .friend-card').forEach((card) => {
+      const tags = (card.dataset.tags ?? '').toLowerCase();
+      const hay = (card.dataset.hay ?? '').toLowerCase();
+      const hitTag = tag === '全部' || tags.includes(tag.toLowerCase());
+      const hitKw = !kw || hay.includes(kw);
+      card.style.display = hitTag && hitKw ? '' : 'none';
+    });
+  }
+</script>

@@ -1,13 +1,128 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Placeholder from '../components/Placeholder.astro';
+
+interface Wallpaper {
+  src: string;
+  title: string;
+}
+
+const images: Wallpaper[] = [
+  { src: '/gallery/wallpapers/wp-01.jpg', title: 'Asuka明日香4K动漫高清壁纸' },
+  { src: '/gallery/wallpapers/wp-02.jpg', title: 'miku海报报纸墙' },
+  { src: '/gallery/wallpapers/wp-03.jpg', title: '初音报纸墙个性4K动漫电脑壁纸' },
+  { src: '/gallery/wallpapers/wp-04.jpg', title: '华为Mate Pad Pro篮球星球' },
+  { src: '/gallery/wallpapers/wp-05.jpg', title: '华为Mate Pad Pro蓝色星球' },
+  { src: '/gallery/wallpapers/wp-06.jpg', title: '厚涂风动漫女孩长发蓝眼睛头饰唯美4K高清壁纸' },
+  { src: '/gallery/wallpapers/wp-07.jpg', title: '微信图片_20260627093039_10_18' },
+  { src: '/gallery/wallpapers/wp-08.jpg', title: '明日方舟中秋夜晚精美4K动漫壁纸高清' },
+  { src: '/gallery/wallpapers/wp-09.jpg', title: '明日方舟凯尔希兽耳白丝袜长腿4K高清动漫壁纸' },
+  { src: '/gallery/wallpapers/wp-10.jpg', title: '明日香报纸墙4K动漫高清电脑壁纸' },
+  { src: '/gallery/wallpapers/wp-11.jpg', title: '明日香涂鸦老虎4K动漫高清壁纸' },
+  { src: '/gallery/wallpapers/wp-12.jpg', title: '明日香简约线条4K' },
+  { src: '/gallery/wallpapers/wp-13.jpg', title: '红色眼睛兔子耳动漫美女坐椅子4K' },
+  { src: '/gallery/wallpapers/wp-14.jpg', title: '绫波丽' },
+  { src: '/gallery/wallpapers/wp-15.jpg', title: '蓝眼睛长卷发动漫女孩夹克4K高清壁纸' },
+  { src: '/gallery/wallpapers/wp-16.jpg', title: '雨夜霓虹赛博朋克女孩' }
+];
 ---
 
 <BaseLayout title="相册">
-  <Placeholder
-    eyebrow="GALLERY // 相册"
-    title="相册"
-    message="相册建设中"
-    hint="以后这里放照片墙。"
-  />
+  <section class="container">
+    <div class="panel reveal-x">
+      <header class="page-head">
+        <p class="micro-label">GALLERY // 相册</p>
+        <h1 class="display-title">壁纸合集</h1>
+        <p class="micro-label" style="margin-top: var(--sp-3);">WALLPAPERS // {images.length} 张</p>
+      </header>
+
+      <div class="gallery-grid" id="gallery-grid">
+        {
+          images.map((img, i) => (
+            <figure class="gallery-item reveal" data-src={img.src} data-title={img.title} data-index={i} style={`--reveal-delay:${(i % 4) * 60}ms`}>
+              <img src={img.src} alt={img.title} loading="lazy" />
+              <figcaption class="gallery-cap">{img.title}</figcaption>
+            </figure>
+          ))
+        }
+      </div>
+    </div>
+  </section>
 </BaseLayout>
+
+<script>
+  // 灯箱：点击缩略图全屏查看，支持左右切换/关闭（事件委托，动态创建遮罩）
+  const items = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('#gallery-grid .gallery-item'));
+  let current = 0;
+
+  const openLightbox = (index: number) => {
+    closeLightbox();
+    current = index;
+    const list = items();
+    const item = list[current];
+    if (!item) return;
+
+    const box = document.createElement('div');
+    box.className = 'lightbox';
+    box.id = 'lightbox';
+    box.innerHTML = `
+      <button class="lightbox-close" aria-label="关闭">✕</button>
+      <button class="lightbox-nav lightbox-prev" aria-label="上一张">‹</button>
+      <figure class="lightbox-fig">
+        <img src="${item.dataset.src}" alt="${item.dataset.title}" />
+        <figcaption><span class="lightbox-count">${current + 1} / ${list.length}</span> ${item.dataset.title}</figcaption>
+      </figure>
+      <button class="lightbox-nav lightbox-next" aria-label="下一张">›</button>`;
+    document.body.appendChild(box);
+  };
+
+  const closeLightbox = () => {
+    document.getElementById('lightbox')?.remove();
+  };
+
+  const showAt = (i: number) => {
+    const list = items();
+    if (list.length === 0) return;
+    current = (i + list.length) % list.length;
+    const item = list[current];
+    const img = document.querySelector('#lightbox .lightbox-fig img') as HTMLImageElement | null;
+    const cap = document.querySelector('#lightbox figcaption');
+    const count = document.querySelector('#lightbox .lightbox-count');
+    if (img) img.src = item.dataset.src ?? '';
+    if (img) img.alt = item.dataset.title ?? '';
+    if (cap) cap.lastChild!.textContent = ' ' + (item.dataset.title ?? '');
+    if (count) count.textContent = `${current + 1} / ${list.length}`;
+  };
+
+  document.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const item = t.closest('.gallery-item');
+    if (item && !t.closest('#lightbox')) {
+      openLightbox(parseInt((item as HTMLElement).dataset.index ?? '0', 10));
+      return;
+    }
+    if (t.closest('.lightbox-close')) {
+      closeLightbox();
+      return;
+    }
+    if (t.closest('.lightbox-prev')) {
+      showAt(current - 1);
+      return;
+    }
+    if (t.closest('.lightbox-next')) {
+      showAt(current + 1);
+      return;
+    }
+    // 点遮罩空白处关闭
+    if ((t as HTMLElement).classList?.contains('lightbox')) {
+      closeLightbox();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!document.getElementById('lightbox')) return;
+    if (e.key === 'Escape') closeLightbox();
+    else if (e.key === 'ArrowLeft') showAt(current - 1);
+    else if (e.key === 'ArrowRight') showAt(current + 1);
+  });
+</script>

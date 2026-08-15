@@ -485,10 +485,10 @@ h1, h2, h3, h4 {
   left: 0;
   min-width: 240px;
   padding: 6px;
-  /* 磨砂玻璃：高透明度 + 强模糊 + 顶部受光 */
-  background: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  /* 磨砂玻璃：与导航栏完全一致的玻璃参数 */
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 14px;
   box-shadow: var(--shadow-2), inset 0 1px 0 rgba(255, 255, 255, 0.55);
@@ -500,7 +500,9 @@ h1, h2, h3, h4 {
 }
 .dropdown.open .dropdown-menu { opacity: 1; visibility: visible; transform: none; }
 [data-theme="dark"] .dropdown-menu {
-  background: rgba(13, 16, 23, 0.35);
+  background: rgba(13, 16, 23, 0.24);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
   border-color: rgba(255, 255, 255, 0.14);
   box-shadow: var(--shadow-2), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
@@ -660,11 +662,10 @@ h1, h2, h3, h4 {
   place-content: center;
   text-align: center;
   overflow: hidden;
-  /* 冰川渐变底色（借鉴 blog.myqfeng.top 的柔和渐变手法） */
+  /* 冰川蓝线条壁纸 + 白色薄纱保证文字可读 */
   background:
-    radial-gradient(1100px 560px at 72% 18%, rgba(126, 200, 227, 0.35), transparent 62%),
-    radial-gradient(900px 500px at 18% 82%, rgba(159, 216, 238, 0.30), transparent 60%),
-    linear-gradient(180deg, #eef7fa 0%, var(--bg) 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(233, 243, 247, 0.68) 55%, var(--bg) 100%),
+    url('/wallpapers/asuka-line.jpg') center / cover no-repeat;
 }
 .hero .watermark { top: 16%; right: 6%; }
 .hero .title {
@@ -1147,6 +1148,389 @@ h1, h2, h3, h4 {
 .tag-cloud .tag { padding: 6px 14px; font-size: 0.9rem; }
 .tag-count { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-faint); margin-left: 4px; }
 
+/* ---------- 友链（仿 blog.myqfeng.top/friends/：图标卡 + 筛选 + 申请说明） ---------- */
+
+.friend-filter { margin-bottom: var(--sp-6); }
+.friend-search {
+  position: relative;
+  margin-bottom: var(--sp-3);
+  max-width: 420px;
+}
+.friend-search svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--text-faint);
+}
+.friend-search input {
+  width: 100%;
+  padding: 10px 14px 10px 38px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-panel) 70%, transparent);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
+}
+.friend-search input::placeholder { color: var(--text-faint); }
+.friend-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.friend-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.category-pill {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: transparent;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.2s var(--ease), background-color 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+.category-pill:hover { color: var(--accent-deep); border-color: var(--accent); }
+.category-pill[data-active] { background: var(--accent); border-color: var(--accent); color: #0d1b22; }
+
+.friends-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--sp-4);
+}
+.friend-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease), transform 0.3s var(--ease);
+}
+/* hover 主色微光层（清风同款） */
+.friend-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+  pointer-events: none;
+}
+.friend-card:hover { border-color: var(--accent-glow); box-shadow: var(--shadow-2); transform: translateY(-3px); }
+.friend-card:hover::before { opacity: 0.06; }
+
+.friend-avatar {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent-soft) 18%, var(--bg-panel));
+  border: 1px solid var(--line);
+  transition: transform 0.3s var(--ease);
+}
+.friend-card:hover .friend-avatar { transform: scale(1.05); }
+.friend-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.friend-letter {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--accent-deep);
+}
+.friend-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.friend-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.friend-name { font-weight: 700; font-size: 0.98rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.2s var(--ease); }
+.friend-card:hover .friend-name { color: var(--accent-deep); }
+.friend-arrow {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--accent);
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+}
+.friend-card:hover .friend-arrow { opacity: 1; transform: none; }
+.friend-desc {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.friend-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.friend-tag {
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  background: color-mix(in srgb, var(--accent-soft) 14%, transparent);
+  color: var(--text-dim);
+}
+
+/* 申请说明 */
+.friend-apply {
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--line);
+}
+.friend-apply-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin: 0 0 var(--sp-5);
+}
+.friend-apply-title svg { width: 20px; height: 20px; color: var(--accent); }
+.friend-apply-steps { display: flex; flex-direction: column; gap: var(--sp-4); }
+.apply-step { display: flex; gap: 14px; }
+.apply-num {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #0d1b22;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.apply-title { margin: 0 0 2px; font-weight: 600; font-size: 0.9rem; }
+.apply-desc { margin: 0; font-size: 0.8rem; color: var(--text-faint); }
+.apply-desc a { color: var(--accent-deep); }
+.friend-site-info { margin-top: var(--sp-6); }
+.friend-site-grid { display: grid; gap: 6px; margin-top: var(--sp-3); max-width: 560px; }
+.friend-site-grid > div { display: flex; gap: 12px; font-size: 0.85rem; }
+.info-key { width: 44px; flex-shrink: 0; color: var(--text-faint); font-family: var(--font-display); letter-spacing: 0.08em; }
+.info-val { color: var(--text-dim); }
+
+/* ---------- 打赏 ---------- */
+
+.sponsor-head { text-align: center; }
+.sponsor-bless {
+  margin-top: var(--sp-3);
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--accent-deep);
+  font-size: 1.05rem;
+}
+.sponsor-lead {
+  max-width: 620px;
+  margin: 0 auto var(--sp-3);
+  text-align: center;
+  font-size: 1.02rem;
+  color: var(--text);
+}
+.sponsor-use {
+  max-width: 620px;
+  margin: 0 auto var(--sp-7);
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--text-faint);
+}
+.sponsor-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+  justify-content: center;
+}
+.sponsor-card {
+  width: 260px;
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.sponsor-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.sponsor-card-head svg { width: 22px; height: 22px; color: #2aae67; }
+.sponsor-qr {
+  width: 200px;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+.sponsor-tip { margin: 0; font-size: 0.85rem; color: var(--text-dim); }
+.sponsor-thanks {
+  margin-top: var(--sp-7);
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+/* ---------- 追番 ---------- */
+
+.bangumi-group { margin-bottom: var(--sp-7); }
+.bangumi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-4);
+}
+.bangumi-card {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-1);
+  transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease), border-color 0.3s var(--ease);
+}
+.bangumi-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-glow);
+  box-shadow: var(--shadow-2);
+}
+.bangumi-cover { position: relative; aspect-ratio: 3 / 4; overflow: hidden; }
+.bangumi-cover img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s var(--ease); }
+.bangumi-card:hover .bangumi-cover img { transform: scale(1.06); }
+.bangumi-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  background: rgba(13, 27, 34, 0.68);
+  color: #ffe08a;
+  font-size: 0.65rem;
+  backdrop-filter: blur(4px);
+}
+.bangumi-meta { padding: 8px 10px 10px; }
+.bangumi-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.2s var(--ease);
+}
+.bangumi-card:hover .bangumi-title { color: var(--accent-deep); }
+.bangumi-progress { margin: 2px 0 0; font-size: 0.7rem; color: var(--text-faint); }
+.bangumi-note { margin-top: var(--sp-6); font-size: var(--text-sm); color: var(--text-faint); }
+
+/* ---------- 相册（壁纸合集） ---------- */
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-4);
+}
+.gallery-item {
+  position: relative;
+  margin: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: zoom-in;
+  border: 1px solid var(--line);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-1);
+  transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease), border-color 0.3s var(--ease);
+}
+.gallery-item:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-glow);
+  box-shadow: var(--shadow-2);
+}
+.gallery-item img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.5s var(--ease);
+}
+.gallery-item:hover img { transform: scale(1.05); }
+.gallery-cap {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 22px 12px 8px;
+  font-size: 0.78rem;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(13, 27, 34, 0.78));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+}
+.gallery-item:hover .gallery-cap { opacity: 1; }
+
+/* 灯箱 */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  background: rgba(9, 16, 21, 0.86);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fade-in 0.2s ease both;
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.lightbox-fig {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: min(1100px, 92vw);
+}
+.lightbox-fig img {
+  max-width: 100%;
+  max-height: 78vh;
+  border-radius: 10px;
+  box-shadow: var(--shadow-2);
+}
+.lightbox-fig figcaption {
+  color: #cfe3ec;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.lightbox-count { font-family: var(--font-mono); color: var(--accent-soft); margin-right: 6px; }
+.lightbox-close,
+.lightbox-nav {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+.lightbox-close:hover,
+.lightbox-nav:hover { background: var(--accent); border-color: var(--accent); color: #0d1b22; }
+.lightbox-close { top: 20px; right: 20px; }
+.lightbox-prev { left: 18px; top: 50%; transform: translateY(-50%); }
+.lightbox-next { right: 18px; top: 50%; transform: translateY(-50%); }
+
 /* ---------- 播放器弹窗（磨砂玻璃质感，挂在导航栏右下方） ---------- */
 
 .music-popup {
@@ -1259,10 +1643,10 @@ h1, h2, h3, h4 {
   --vignette: inset 0 0 60px rgba(0, 0, 0, 0.35);
 }
 [data-theme="dark"] .hero {
+  /* 暗色下：同款壁纸 + 深色覆盖，蓝线条透出 */
   background:
-    radial-gradient(1100px 560px at 72% 18%, rgba(94, 178, 216, 0.16), transparent 62%),
-    radial-gradient(900px 500px at 18% 82%, rgba(126, 200, 227, 0.10), transparent 60%),
-    linear-gradient(180deg, #0f2029 0%, var(--bg) 100%);
+    linear-gradient(180deg, rgba(13, 27, 34, 0.86), rgba(13, 27, 34, 0.92) 60%, var(--bg) 100%),
+    url('/wallpapers/asuka-line.jpg') center / cover no-repeat;
 }
 /* 暗色冰川：移动端菜单面板（侧边栏本体已在上方定义） */
 [data-theme="dark"] .mobile-menu {

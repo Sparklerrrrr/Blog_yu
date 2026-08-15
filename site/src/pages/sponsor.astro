@@ -1,13 +1,37 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Placeholder from '../components/Placeholder.astro';
 ---
 
 <BaseLayout title="打赏">
-  <Placeholder
-    eyebrow="SPONSOR // 打赏"
-    title="打赏"
-    message="打赏功能建设中"
-    hint="喜欢这个博客？以后可以请我喝杯咖啡。"
-  />
+  <section class="container">
+    <div class="panel reveal-x">
+      <header class="page-head sponsor-head">
+        <p class="micro-label">SPONSOR // 打赏</p>
+        <h1 class="display-title">打赏支持</h1>
+        <p class="sponsor-bless">May all the beauty be blessed!</p>
+      </header>
+
+      <p class="sponsor-lead">
+        如果我的内容对你有帮助，欢迎通过以下方式打赏我，你的支持是我持续创作的动力！
+      </p>
+      <p class="sponsor-use">
+        您的打赏将用于服务器维护、内容创作和功能开发，帮助我持续提供优质内容。
+      </p>
+
+      <div class="sponsor-grid">
+        <div class="card sponsor-card reveal" style="--reveal-delay:80ms">
+          <div class="sponsor-card-head">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm5.2 11.2-1.6 1.6-1.8 1.8c-.5.5-1.3.5-1.8 0l-3-3c-.5-.5-.5-1.3 0-1.8l1.6-1.6 3 3c.1.1.3.1.4 0l1.4-1.4c.3-.3.8-.3 1.1 0l.7.7c.3.2.3.7 0 1zm-2.5 2.5 1.8-1.8 1.6-1.6-1.4-1.4-3 3-3-3-1.6 1.6 3.4 3.4 1.4 1.4c.3.3.7.3 1.1 0l.7-.7z"/></svg>
+            <p class="sponsor-name">微信</p>
+          </div>
+          <img class="sponsor-qr" src="/sponsor/wechat-qr.jpg" alt="微信收款码" loading="lazy" />
+          <p class="sponsor-tip">使用 微信 扫码打赏</p>
+        </div>
+      </div>
+
+      <p class="sponsor-thanks">
+        每一份打赏我都记在心里。感谢你的喜欢与支持 ❤
+      </p>
+    </div>
+  </section>
 </BaseLayout>

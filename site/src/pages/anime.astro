@@ -1,13 +1,145 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Placeholder from '../components/Placeholder.astro';
+
+import { readFileSync, writeFileSync } from 'node:fs';
+
+const VMID = '421381039'; // B 站 UID
+const CACHE_FILE = new URL('../data/bangumi.json', import.meta.url);
+
+interface Bangumi {
+  title: string;
+  cover: string;
+  url: string;
+  progress: string;
+  badge?: string;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchBangumi(followStatus: number): Promise<Bangumi[]> {
+  // 单次快速尝试（8 秒超时），失败立即返回——页面渲染不能卡住
+  try {
+    const res = await fetch(
+      `https://api.bilibili.com/x/space/bangumi/follow/list?type=1&follow_status=${followStatus}&pn=1&ps=50&vmid=${VMID}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120',
+          Referer: `https://space.bilibili.com/${VMID}/bangumi`,
+        },
+        signal: AbortSignal.timeout(8000),
+      }
+    );
+    const data = await res.json();
+    if (data.code !== 0 || !data.data?.list) return [];
+    return (data.data.list as Array<Record<string, unknown>>).map((item) => ({
+      title: String(item.title ?? ''),
+      cover: String(item.cover ?? '').replace('http://', 'https://'),
+      url: String(item.url ?? ''),
+      progress: item.new_ep && typeof item.new_ep === 'object'
+        ? String((item.new_ep as Record<string, unknown>).index_show ?? '')
+        : '',
+      badge: item.badge ? String(item.badge) : undefined,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// 缓存优先：先读缓存；尝试一次快速刷新，成功则更新缓存，失败就用缓存
+async function loadBangumi() {
+  let cached: { watching?: Bangumi[]; want?: Bangumi[]; watched?: Bangumi[] } | null = null;
+  try {
+    cached = JSON.parse(readFileSync(CACHE_FILE, 'utf-8'));
+  } catch { /* 无缓存 */ }
+
+  const watching = await fetchBangumi(0);
+  if (watching.length > 0) {
+    // API 正常：继续拉另两组并写缓存
+    await sleep(800);
+    const want = await fetchBangumi(1);
+    await sleep(800);
+    const watched = await fetchBangumi(2);
+    const result = { watching, want, watched };
+    try {
+      writeFileSync(CACHE_FILE, JSON.stringify(result, null, 2));
+    } catch { /* 忽略 */ }
+    return result;
+  }
+
+  // API 不可用：回退缓存（秒开）
+  if (cached?.watching) {
+    return {
+      watching: cached.watching ?? [],
+      want: cached.want ?? [],
+      watched: cached.watched ?? [],
+    };
+  }
+  return { watching: [], want: [], watched: [] };
+}
+
+let { watching, want, watched } = await loadBangumi();
+
+const groups = [
+  { key: 'watching', label: '在看', en: 'WATCHING', list: watching },
+  { key: 'want', label: '想看', en: 'WANT TO WATCH', list: want },
+  { key: 'watched', label: '看过', en: 'WATCHED', list: watched },
+];
+
+const total = watching.length + want.length + watched.length;
 ---
 
 <BaseLayout title="追番">
-  <Placeholder
-    eyebrow="ANIME // 追番"
-    title="追番"
-    message="追番列表建设中"
-    hint="记录我追的番剧。"
-  />
+  <section class="container">
+    <div class="panel reveal-x">
+      <header class="page-head">
+        <p class="micro-label">ANIME // 追番</p>
+        <h1 class="display-title">追番</h1>
+        <p class="micro-label" style="margin-top: var(--sp-3);">
+          SYNC FROM BILIBILI // UID {VMID} // 共 {total} 部
+        </p>
+      </header>
+
+      {
+        total === 0 ? (
+          <div class="empty-state card">
+            <p class="micro-label">PRIVATE</p>
+            <p class="empty-msg">拉取不到追番列表</p>
+            <p class="empty-hint">
+              请先在 B 站公开追番列表：空间设置 → 隐私设置 → 公开「追番/追剧」，然后重新构建站点。
+            </p>
+          </div>
+        ) : (
+          groups.map((g) =>
+            g.list.length > 0 ? (
+              <section class="bangumi-group">
+                <div class="section-head">
+                  <p class="micro-label">{g.en} // {g.label}</p>
+                  <h2 class="title display-title">{g.label}</h2>
+                  <div class="rule" aria-hidden="true"></div>
+                </div>
+                <div class="bangumi-grid">
+                  {g.list.map((item) => (
+                    <a class="bangumi-card reveal" href={item.url} target="_blank" rel="noopener noreferrer">
+                      <div class="bangumi-cover">
+                        <img src={item.cover} alt={item.title} loading="lazy" />
+                        {item.badge && <span class="bangumi-badge">{item.badge}</span>}
+                      </div>
+                      <div class="bangumi-meta">
+                        <p class="bangumi-title" title={item.title}>{item.title}</p>
+                        {item.progress && <p class="bangumi-progress">{item.progress}</p>}
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            ) : null
+          )
+        )
+      }
+
+      <p class="bangumi-note">
+        数据来自我的 B 站追番列表（UID {VMID}），构建站点时自动同步；点击卡片前往 B 站观看。
+      </p>
+    </div>
+  </section>
 </BaseLayout>
