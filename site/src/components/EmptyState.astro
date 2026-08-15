@@ -1,0 +1,21 @@
+---
+interface Props {
+  eyebrow?: string;
+  message?: string;
+  hint?: string;
+}
+
+const {
+  eyebrow = 'STANDBY',
+  message = '文章准备中',
+  hint = '在 src/content/posts/ 下新建 Markdown 文件即可发布。',
+} = Astro.props;
+---
+
+<div class="empty-state card">
+  <p class="micro-label">{eyebrow}</p>
+  <p class="empty-msg">{message}</p>
+  <p class="empty-hint">
+    {hint}
+  </p>
+</div>

@@ -1,0 +1,55 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import SectionHead from '../components/SectionHead.astro';
+import ArticleCard from '../components/ArticleCard.astro';
+import EmptyState from '../components/EmptyState.astro';
+import { CATEGORIES, getPosts, SITE } from '../lib/site';
+
+const posts = await getPosts();
+const latest = posts.slice(0, 6);
+const cats = Object.entries(CATEGORIES);
+---
+
+<BaseLayout>
+  <Hero />
+
+  <section id="latest" class="section container">
+    <SectionHead eyebrow="LATEST // 最新" title="最新文章" />
+    {
+      latest.length > 0 ? (
+        <div class="card-grid">
+          {latest.map((post) => (
+            <ArticleCard post={post} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState />
+      )
+    }
+  </section>
+
+  <section id="categories" class="section container">
+    <SectionHead eyebrow="CATEGORIES // 分类" title="分类入口" />
+    <div class="cat-grid">
+      {cats.map(([id, cat], i) => (
+        <a class="card cat-block" href={`/posts/?cat=${id}`} data-category={id}>
+          <p class="micro-label">{cat.en}</p>
+          <p class="cat-name">{cat.zh}</p>
+          <span class="cat-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section id="about-brief" class="section container">
+    <SectionHead eyebrow="ABOUT // 关于" title="关于本站" />
+    <p class="about-brief">
+      这里是{SITE.zh}，{SITE.author} 的个人博客——记录技术、生活与思考。暗色底、冰川蓝点缀、锐利直角，
+      灵感来自鹰角网络与《明日方舟》的平面设计。
+    </p>
+    <p style="margin-top: var(--sp-4);">
+      <a class="tag" href="/about/">了解更多 ABOUT →</a>
+    </p>
+  </section>
+</BaseLayout>

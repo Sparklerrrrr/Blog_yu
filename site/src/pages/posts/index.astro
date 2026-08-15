@@ -1,0 +1,84 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ArticleCard from '../../components/ArticleCard.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import { CATEGORIES, getPosts } from '../../lib/site';
+
+const posts = await getPosts();
+const cats = Object.entries(CATEGORIES);
+---
+
+<BaseLayout title="文章归档">
+  <section class="container">
+    <header class="page-head">
+      <p class="micro-label">ARCHIVE // 归档</p>
+      <h1 class="display-title">全部文章</h1>
+      <p class="micro-label" style="margin-top: var(--sp-3);">TOTAL // {posts.length}</p>
+    </header>
+
+    <div class="filter-bar">
+      <button type="button" class="tag filter-btn is-active" data-filter="all">全部 ALL</button>
+      {
+        cats.map(([id, cat]) => (
+          <button type="button" class="tag filter-btn" data-filter={id}>
+            {cat.zh} {cat.en}
+          </button>
+        ))
+      }
+    </div>
+
+    {
+      posts.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div class="card-grid" id="post-grid">
+          {posts.map((post) => (
+            <div class="filter-item" data-cat={post.data.category}>
+              <ArticleCard post={post} />
+            </div>
+          ))}
+        </div>
+      )
+    }
+  </section>
+</BaseLayout>
+
+<script>
+  const grid = document.getElementById('post-grid');
+  if (grid) {
+    const items = Array.from(grid.querySelectorAll<HTMLElement>('.filter-item'));
+    const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.filter-btn'));
+    const valid = new Set(['all', ...buttons.map((b) => b.dataset.filter ?? '')]);
+    let emptyNote: HTMLElement | null = null;
+
+    function apply(cat: string) {
+      buttons.forEach((b) => b.classList.toggle('is-active', b.dataset.filter === cat));
+      let count = 0;
+      items.forEach((el) => {
+        const show = cat === 'all' || el.dataset.cat === cat;
+        el.style.display = show ? '' : 'none';
+        if (show) count += 1;
+      });
+      emptyNote?.remove();
+      emptyNote = null;
+      if (count === 0) {
+        emptyNote = document.createElement('div');
+        emptyNote.className = 'empty-state card';
+        emptyNote.innerHTML =
+          '<p class="micro-label">EMPTY</p><p class="empty-msg">该分类暂无文章</p>';
+        grid.appendChild(emptyNote);
+      }
+      const url = new URL(location.href);
+      if (cat === 'all') {
+        url.searchParams.delete('cat');
+      } else {
+        url.searchParams.set('cat', cat);
+      }
+      history.replaceState(null, '', url);
+    }
+
+    const raw = new URLSearchParams(location.search).get('cat') ?? 'all';
+    apply(valid.has(raw) ? raw : 'all');
+    buttons.forEach((b) => b.addEventListener('click', () => apply(b.dataset.filter ?? 'all')));
+  }
+</script>

@@ -1,0 +1,35 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { CATEGORIES, formatDate } from '../lib/site';
+import Tag from './Tag.astro';
+
+interface Props {
+  post: CollectionEntry<'posts'>;
+}
+
+const { post } = Astro.props;
+const cat = CATEGORIES[post.data.category];
+---
+
+<article class="card article-card" data-category={post.data.category}>
+  <a class="card-link" href={`/posts/${post.id}/`}>
+    <p class="micro-label">
+      {cat.en} <span class="num">// {formatDate(post.data.date)}</span>
+    </p>
+    <h2 class="title">{post.data.title}</h2>
+    {post.data.description && <p class="desc">{post.data.description}</p>}
+  </a>
+  {
+    post.data.tags.length > 0 && (
+      <div class="tags">
+        {post.data.tags.map((t) => (
+          <Tag text={t} />
+        ))}
+      </div>
+    )
+  }
+</article>
+
+<style>
+  .card-link { display: block; }
+</style>

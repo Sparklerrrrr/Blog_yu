@@ -1,0 +1,31 @@
+---
+import { SITE } from '../lib/site';
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container foot-grid">
+    <div>
+      <p class="micro-label">BLOG_YU // {SITE.zh}</p>
+      <p class="coords">{SITE.coords}</p>
+    </div>
+    <div>
+      <p class="micro-label">NAV</p>
+      <div class="foot-links">
+        <a href="/">首页</a>
+        <a href="/posts/">文章</a>
+        <a href="/about/">关于</a>
+      </div>
+    </div>
+  </div>
+  <div class="container copyright">
+    © {year} {SITE.author} · 文章以
+    <a
+      href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh"
+      target="_blank"
+      rel="license noopener"
+    >CC BY-NC-SA 4.0</a
+    >
+    许可发布 · Built with Astro · {SITE.en}
+  </div>
+</footer>
