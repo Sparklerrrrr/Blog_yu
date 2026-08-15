@@ -1,0 +1,38 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Tag from '../components/Tag.astro';
+import { getPosts } from '../lib/site';
+
+const posts = await getPosts();
+const tagCounts: Record<string, number> = {};
+for (const p of posts) {
+  for (const t of p.data.tags) {
+    tagCounts[t] = (tagCounts[t] ?? 0) + 1;
+  }
+}
+const tags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
+---
+
+<BaseLayout title="标签">
+  <section class="container">
+    <div class="panel reveal-x">
+      <header class="page-head">
+        <p class="micro-label">TAGS // 标签</p>
+        <h1 class="display-title">标签</h1>
+      </header>
+      {
+        tags.length === 0 ? (
+          <p class="empty-hint" style="margin-top: var(--sp-4);">还没有标签，写文章时在 frontmatter 里加 tags 即可。</p>
+        ) : (
+          <div class="tag-cloud">
+            {tags.map(([tag, n]) => (
+              <a class="tag" href={`/search/?q=${encodeURIComponent(tag)}`} title={`${n} 篇文章`}>
+                {tag} <span class="tag-count">{n}</span>
+              </a>
+            ))}
+          </div>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>

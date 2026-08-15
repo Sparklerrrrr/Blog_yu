@@ -1,0 +1,24 @@
+---
+interface Props {
+  eyebrow: string;
+  title: string;
+  message: string;
+  hint?: string;
+}
+
+const { eyebrow, title, message, hint } = Astro.props;
+---
+
+<section class="container">
+  <div class="panel reveal-x">
+    <header class="page-head">
+      <p class="micro-label">{eyebrow}</p>
+      <h1 class="display-title">{title}</h1>
+    </header>
+    <div class="empty-state card">
+      <p class="micro-label">STANDBY</p>
+      <p class="empty-msg">{message}</p>
+      {hint && <p class="empty-hint">{hint}</p>}
+    </div>
+  </div>
+</section>

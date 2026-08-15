@@ -1,5 +1,5 @@
 ---
-import { CATEGORIES, getPosts } from '../lib/site';
+import { CATEGORIES, formatDate, getPosts } from '../lib/site';
 
 const posts = await getPosts();
 const counts: Record<string, number> = { all: posts.length };
@@ -8,88 +8,312 @@ for (const p of posts) {
 }
 const cats = Object.entries(CATEGORIES);
 const path = Astro.url.pathname.replace(/\/+$/, '');
-const isPosts = path.startsWith('/posts');
+
+/** 曲库：加歌就在这个数组加一行（mp3 放 public/music/） */
+const tracks = [
+  { title: 'Taipei (Tsundere Twintails Remix)', artist: 'Tsundere Twintails', src: '/music/taipei-remix.mp3', cover: '/music/covers/taipei.jpg' },
+  { title: '春弦', artist: '塞壬唱片-MSR / 横山克', src: '/music/chunxian.mp3', cover: '/music/covers/chunxian.png' },
+];
 ---
 
 <header class="site-nav" id="site-nav">
   <div class="nav-inner">
-    <!-- 品牌区 -->
+    <!-- 左：品牌 -->
     <a class="nav-brand" href="/" aria-label="回到首页">
       <span class="nav-logo" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
           <path d="M5 19V5l14 0v14h-8v-6h-6v6z" />
         </svg>
       </span>
-      <span>BLOG_YU</span>
+      <span class="brand-text">BLOG_YU</span>
     </a>
 
-    <!-- 中间菜单 -->
+    <!-- 中：菜单（版块与下拉分类仿 blog.myqfeng.top） -->
     <nav class="nav-center" aria-label="主导航">
-      <a href="/" class="nav-item" aria-current={path === '' ? 'page' : undefined}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter"><path d="M4 10.5 12 4l8 6.5V20h-6v-6h-4v6H4z" /></svg>
-        <span>首页</span>
+      <!-- 主页 -->
+      <a class="nav-item" href="/" data-spy="top" aria-current={path === '' ? 'page' : undefined}>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20h-6v-6h-4v6H4z"/></svg>
+        <span>主页</span>
       </a>
 
+      <!-- 文章 -->
       <div class="dropdown" data-dropdown>
-        <button type="button" class="nav-item" aria-expanded="false" aria-haspopup="true" data-dropdown-trigger aria-current={isPosts ? 'page' : undefined}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14v6H5zM5 14h14v6H5z" /></svg>
+        <button
+          type="button"
+          class="nav-item"
+          aria-expanded="false"
+          aria-haspopup="true"
+          data-dropdown-trigger
+          aria-current={path.startsWith('/posts') || path.startsWith('/archive') || path.startsWith('/categories') || path.startsWith('/tags') ? 'page' : undefined}
+        >
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 4h14v6H5zM5 14h14v6H5z"/></svg>
           <span>文章</span>
-          <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9.5l6 6 6-6" /></svg>
+          <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9.5l6 6 6-6" /></svg>
         </button>
         <div class="dropdown-menu" data-dropdown-menu role="menu">
-          <a class="dropdown-item" href="/posts/" role="menuitem">
+          <a class="dropdown-item" href="/archive/" role="menuitem">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v5H4zM4 11h16v5H4zM4 17h16v3H4z" /></svg>
-            <span>全部文章</span>
+            <span>归档</span>
             <span class="pill-count">{counts.all}</span>
           </a>
-          <div class="dropdown-divider"></div>
-          {
-            cats.map(([id, cat]) => (
-              <a class="dropdown-item" href={`/posts/?cat=${id}`} role="menuitem">
-                <span class="cat-dot" style={`background:${cat.color}`} aria-hidden="true"></span>
-                <span>{cat.zh}</span>
-                <span class="cat-en">{cat.en}</span>
-                <span class="pill-count">{counts[id] ?? 0}</span>
-              </a>
-            ))
-          }
+          <a class="dropdown-item" href="/categories/" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6.5" height="6.5"/><rect x="13.5" y="4" width="6.5" height="6.5"/><rect x="4" y="13.5" width="6.5" height="6.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5"/></svg>
+            <span>分类</span>
+          </a>
+          <a class="dropdown-item" href="/tags/" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 12 12 20l-8-8V4h8z" /><circle cx="8.5" cy="8.5" r="1.2" /></svg>
+            <span>标签</span>
+          </a>
         </div>
       </div>
 
-      <a href="/about/" class="nav-item" aria-current={path === '/about' ? 'page' : undefined}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5" /><path d="M12 7.6v.2" /></svg>
-        <span>关于</span>
-      </a>
+      <!-- 社交 -->
+      <div class="dropdown" data-dropdown>
+        <button
+          type="button"
+          class="nav-item"
+          aria-expanded="false"
+          aria-haspopup="true"
+          data-dropdown-trigger
+          aria-current={path.startsWith('/friends') || path.startsWith('/guestbook') ? 'page' : undefined}
+        >
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.4" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><circle cx="17" cy="9" r="2.6" /><path d="M15.5 14.2A4.6 4.6 0 0 1 20.5 19" /></svg>
+          <span>社交</span>
+          <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9.5l6 6 6-6" /></svg>
+        </button>
+        <div class="dropdown-menu" data-dropdown-menu role="menu">
+          <a class="dropdown-item" href="/friends/" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 14a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1.2 1.2" /><path d="M14 10a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1.2-1.2" /></svg>
+            <span>友链</span>
+          </a>
+          <a class="dropdown-item" href="/guestbook/" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v12H9l-5 4z" /></svg>
+            <span>留言</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- 我的 -->
+      <div class="dropdown" data-dropdown>
+        <button
+          type="button"
+          class="nav-item"
+          aria-expanded="false"
+          aria-haspopup="true"
+          data-dropdown-trigger
+          aria-current={path.startsWith('/dynamic') || path.startsWith('/gallery') || path.startsWith('/anime') ? 'page' : undefined}
+        >
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.6" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" /></svg>
+          <span>我的</span>
+          <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9.5l6 6 6-6" /></svg>
+        </button>
+        <div class="dropdown-menu" data-dropdown-menu role="menu">
+          <a class="dropdown-item" href="/dynamic/" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 3 5 13h6l-1 8 8-10h-6z" /></svg>
+            <span>动态</span>
+          </a>
+          <a class="dropdown-item" href="/gallery/" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5" /><circle cx="9" cy="10" r="1.8" /><path d="m5 18 5.5-5 3.5 3 3-3L20 16.5" /></svg>
+            <span>相册</span>
+          </a>
+          <a class="dropdown-item" href="/anime/" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="m10 9.5 5 2.5-5 2.5z" /></svg>
+            <span>追番</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- 关于 -->
+      <div class="dropdown" data-dropdown>
+        <button
+          type="button"
+          class="nav-item"
+          aria-expanded="false"
+          aria-haspopup="true"
+          data-dropdown-trigger
+          aria-current={path.startsWith('/sponsor') || path.startsWith('/about') ? 'page' : undefined}
+        >
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5" /><path d="M12 7.6v.2" /></svg>
+          <span>关于</span>
+          <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9.5l6 6 6-6" /></svg>
+        </button>
+        <div class="dropdown-menu" data-dropdown-menu role="menu">
+          <a class="dropdown-item" href="/sponsor/" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.5-9-9a4.5 4.5 0 0 1 8-3 4.5 4.5 0 0 1 8 3c-2 4.5-7 9-7 9z" /></svg>
+            <span>打赏</span>
+          </a>
+          <a class="dropdown-item" href="/about/" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5" /><path d="M12 7.6v.2" /></svg>
+            <span>关于我</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- 链接（GitHub / Gitee / Bilibili） -->
+      <div class="dropdown" data-dropdown>
+        <button
+          type="button"
+          class="nav-item"
+          aria-expanded="false"
+          aria-haspopup="true"
+          data-dropdown-trigger
+        >
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1.2 1.2" /><path d="M14 10a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1.2-1.2" /></svg>
+          <span>链接</span>
+          <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9.5l6 6 6-6" /></svg>
+        </button>
+        <div class="dropdown-menu" data-dropdown-menu role="menu">
+          <a class="dropdown-item" href="https://github.com/Sparklerrrrr" target="_blank" rel="noopener" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>
+            <span>GitHub</span>
+            <svg class="ext-icon" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true"><path d="M384 64c-17.7 0-32 14.3-32 32s14.3 32 32 32h82.7L265.3 329.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L512 173.3V256c0 17.7 14.3 32 32 32s32-14.3 32-32V96c0-17.7-14.3-32-32-32zm-240 96c-44.2 0-80 35.8-80 80v256c0 44.2 35.8 80 80 80h256c44.2 0 80-35.8 80-80v-80c0-17.7-14.3-32-32-32s-32 14.3-32 32v80c0 8.8-7.2 16-16 16H144c-8.8 0-16-7.2-16-16V240c0-8.8 7.2-16 16-16h80c17.7 0 32-14.3 32-32s-14.3-32-32-32z"/></svg>
+          </a>
+          <a class="dropdown-item" href="https://gitee.com/yu_sparklerrr" target="_blank" rel="noopener" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="5" r="2.6" /><circle cx="18" cy="5" r="2.6" /><circle cx="6" cy="19" r="2.6" /><path d="M6 7.6v8.8M18 7.6a7 7 0 0 0-8 12" /></svg>
+            <span>Gitee</span>
+            <svg class="ext-icon" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true"><path d="M384 64c-17.7 0-32 14.3-32 32s14.3 32 32 32h82.7L265.3 329.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L512 173.3V256c0 17.7 14.3 32 32 32s32-14.3 32-32V96c0-17.7-14.3-32-32-32zm-240 96c-44.2 0-80 35.8-80 80v256c0 44.2 35.8 80 80 80h256c44.2 0 80-35.8 80-80v-80c0-17.7-14.3-32-32-32s-32 14.3-32 32v80c0 8.8-7.2 16-16 16H144c-8.8 0-16-7.2-16-16V240c0-8.8 7.2-16 16-16h80c17.7 0 32-14.3 32-32s-14.3-32-32-32z"/></svg>
+          </a>
+          <a class="dropdown-item" href="https://space.bilibili.com/421381039" target="_blank" rel="noopener" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="8" width="17" height="11" rx="1.5" /><path d="M8 8l4-3.5L16 8" /><path d="M9 12.5v3M12 11v6M15.5 12.5v3" /></svg>
+            <span>Bilibili</span>
+            <svg class="ext-icon" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true"><path d="M384 64c-17.7 0-32 14.3-32 32s14.3 32 32 32h82.7L265.3 329.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L512 173.3V256c0 17.7 14.3 32 32 32s32-14.3 32-32V96c0-17.7-14.3-32-32-32zm-240 96c-44.2 0-80 35.8-80 80v256c0 44.2 35.8 80 80 80h256c44.2 0 80-35.8 80-80v-80c0-17.7-14.3-32-32-32s-32 14.3-32 32v80c0 8.8-7.2 16-16 16H144c-8.8 0-16-7.2-16-16V240c0-8.8 7.2-16 16-16h80c17.7 0 32-14.3 32-32s-14.3-32-32-32z"/></svg>
+          </a>
+        </div>
+      </div>
     </nav>
 
-    <!-- 右侧工具区 -->
-    <div class="nav-right">
-      <button type="button" class="icon-btn" id="theme-toggle" aria-label="切换明暗主题" title="切换明暗主题">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" /></svg>
+    <!-- 右：工具 -->
+    <div class="nav-tools">
+      <button type="button" class="icon-btn" id="search-toggle" aria-label="搜索" title="搜索">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></svg>
       </button>
-      <a class="icon-btn" href="https://gitee.com/yu_sparklerrr/blog_yu" target="_blank" rel="noopener" aria-label="Gitee 仓库" title="Gitee 仓库">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="5" r="2.6" /><circle cx="18" cy="5" r="2.6" /><circle cx="6" cy="19" r="2.6" /><path d="M6 7.6v8.8M18 7.6A7 7 0 0 0 8 12" /></svg>
-      </a>
+      <button type="button" class="icon-btn" id="music-toggle" aria-label="音乐" title="音乐">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18.5V6l10-2v12.5" /><circle cx="6.5" cy="18.5" r="2.5" /><circle cx="16.5" cy="16.5" r="2.5" /></svg>
+      </button>
+      <button type="button" class="icon-btn theme-toggle" aria-label="切换明暗主题" title="切换明暗主题">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" /></svg>
+      </button>
       <button type="button" class="icon-btn hamburger" id="menu-toggle" aria-label="打开菜单" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
       </button>
     </div>
   </div>
 
+  <!-- 悬浮搜索面板 -->
+  <div class="search-panel" id="search-panel" role="search">
+    <input id="search-input" class="search-input" type="search" placeholder="搜索文章：标题 / 摘要 / 标签…" autocomplete="off" />
+    <div class="search-results" id="search-results">
+      {
+        posts.map((p) => (
+          <a
+            class="search-result"
+            href={`/posts/${p.id}/`}
+            data-hay={[p.data.title, p.data.description ?? '', p.data.tags.join(' '), p.data.category].join(' ')}
+          >
+            <span class="search-title">{p.data.title}</span>
+            <span class="search-meta">
+              {CATEGORIES[p.data.category].en} // {formatDate(p.data.date)}
+            </span>
+          </a>
+        ))
+      }
+    </div>
+    <p class="search-empty" id="search-empty" hidden>没有找到相关文章</p>
+  </div>
+
   <!-- 移动端折叠菜单 -->
   <div class="mobile-menu" id="mobile-menu" hidden>
-    <a href="/">首页 HOME</a>
-    <a href="/posts/">全部文章 ARCHIVE</a>
-    {
-      cats.map(([id, cat]) => (
-        <a href={`/posts/?cat=${id}`}>
-          <span class="cat-dot" style={`background:${cat.color}`} aria-hidden="true"></span>
-          <span>{cat.zh}</span>
-          <span class="cat-en">{cat.en}</span>
-          <span class="pill-count">{counts[id] ?? 0}</span>
-        </a>
-      ))
-    }
-    <a href="/about/">关于 ABOUT</a>
+    <a href="/">主页 HOME</a>
+    <a href="/archive/">归档 ARCHIVE</a>
+    <a href="/categories/">分类 CATEGORIES</a>
+    <a href="/tags/">标签 TAGS</a>
+    <a href="/friends/">友链 FRIENDS</a>
+    <a href="/guestbook/">留言 GUESTBOOK</a>
+    <a href="/dynamic/">动态 DYNAMIC</a>
+    <a href="/gallery/">相册 GALLERY</a>
+    <a href="/anime/">追番 ANIME</a>
+    <a href="/sponsor/">打赏 SPONSOR</a>
+    <a href="/about/">关于我 ABOUT</a>
+    <a href="https://github.com/Sparklerrrrr" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://gitee.com/yu_sparklerrr" target="_blank" rel="noopener">Gitee</a>
+    <a href="https://space.bilibili.com/421381039" target="_blank" rel="noopener">Bilibili</a>
+  </div>
+
+  <!-- 播放器弹窗（仿 blog.myqfeng.top 的悬浮播放器） -->
+  <div class="music-popup" id="music-popup" data-tracks={JSON.stringify([
+    { title: 'Taipei (Tsundere Twintails Remix)', artist: 'Tsundere Twintails', src: '/music/taipei-remix.mp3' },
+    { title: '春弦', artist: '塞壬唱片-MSR / 横山克', src: '/music/chunxian.mp3' },
+  ])}>
+    <div class="player">
+      <!-- 顶行：旋转圆形封面 + 标题（复刻 blog.myqfeng.top） -->
+      <div class="player-top">
+        <div class="player-disc" id="player-disc" aria-hidden="true">
+          <svg class="disc-note" viewBox="0 0 24 24" fill="currentColor"><path d="M7.175 19.825Q6 18.65 6 17t1.175-2.825T10 13q.575 0 1.063.138t.937.412V4q0-.425.288-.712T13 3h4q.425 0 .713.288T18 4v2q0 .425-.288.713T17 7h-3v10q0 1.65-1.175 2.825T10 21t-2.825-1.175"/></svg>
+          <img class="music-cover" id="player-cover" src="" alt="" hidden />
+        </div>
+        <div class="player-meta">
+          <p class="player-title" id="player-title"></p>
+          <p class="player-artist" id="player-artist">暂未播放</p>
+        </div>
+      </div>
+
+      <!-- 时间显示 + 音量 -->
+      <div class="player-time-row">
+        <div class="player-time" aria-live="polite">
+          <span id="player-current">0:00</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <span id="player-duration">0:00</span>
+        </div>
+        <div class="player-volume">
+          <button type="button" class="icon-btn" id="player-mute" aria-label="音量" title="音量">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9h3l4-4v14l-4-4H4z"/><path d="M15 8.6a4.2 4.2 0 0 1 0 6.8"/><path d="M17.6 6a7.4 7.4 0 0 1 0 12"/></svg>
+          </button>
+          <div class="vol-container" id="player-volume" role="slider" aria-label="音量" aria-valuemin="0" aria-valuemax="100" aria-valuenow="70">
+            <div class="vol-bar" id="player-vol-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 细进度条（hover 圆点） -->
+      <div class="progress-container" id="player-track" role="slider" aria-label="播放进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="progress-bar" id="player-fill"></div>
+        <div class="progress-thumb" aria-hidden="true"></div>
+      </div>
+
+      <!-- 控件行：循环 / 上一首 / 播放 / 下一首 / 列表 -->
+      <div class="player-controls">
+        <button type="button" class="icon-btn" id="player-repeat" aria-label="切换播放模式" title="播放模式">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="m6.85 19 .85.85q.3.3.288.7t-.288.7q-.3.3-.712.313T5.425 21.3L2.85 18.725q-.15-.15-.212-.325T2.575 18t.063-.375t.212-.325l2.575-2.575q.3-.3.713-.287t.712.312q.275.3.288.7t-.288.7l-.85.85H17v-3q0-.425.288-.712T18 13t.713.288T19 14v3q0 .825-.587 1.413T17 19zm10.3-12H7v3q0 .425-.288.713T6 11t-.712-.288T5 10V7q0-.825.588-1.412T7 5h10.15l-.85-.85q-.3-.3-.287-.712t.312-.713q.3-.275.7-.287t.7.287l2.575 2.575q.15.15.213.325t.062.375t-.062.375t-.213.325L17.425 9.9q-.3.3-.712.288t-.713-.313q-.275-.3-.287-.7t.287-.7z"/></svg>
+        </button>
+        <button type="button" class="icon-btn" id="player-prev" aria-label="上一首" title="上一首">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 6h2v12H7zm3.5 6 8.5 6V6z"/></svg>
+        </button>
+        <button type="button" class="btn-play" id="player-toggle" aria-label="播放">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button type="button" class="icon-btn" id="player-next" aria-label="下一首" title="下一首">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 6h-2v12h2zm-3.5 6L5 6v12z"/></svg>
+        </button>
+        <button type="button" class="icon-btn" id="player-list" aria-label="播放列表" title="播放列表" hidden>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h13v2H4zm0 4h13v2H4zm0 4h8v2H4zm13-3v5.5a2.5 2.5 0 1 1-2-2.45V11h6v2z"/></svg>
+        </button>
+      </div>
+
+      <!-- 播放列表 -->
+      <div class="player-playlist" id="player-playlist" hidden>
+        {
+          tracks.map((t, i) => (
+            <button type="button" class="playlist-item" data-index={i}>
+              <span class="playlist-idx">{String(i + 1).padStart(2, '0')}</span>
+              <span class="playlist-meta">
+                <span class="playlist-title">{t.title}</span>
+                <span class="playlist-artist">{t.artist}</span>
+              </span>
+              <svg class="playlist-note" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 18.5V6l10-2v12.5" /><circle cx="6.5" cy="18.5" r="2.5" /><circle cx="16.5" cy="16.5" r="2.5" /></svg>
+            </button>
+          ))
+        }
+      </div>
+    </div>
   </div>
 </header>

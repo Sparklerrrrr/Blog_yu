@@ -4,6 +4,8 @@ import { getCollection } from 'astro:content';
 export const SITE = {
   en: 'BLOG_YU',
   zh: '家玉的小站',
+  /** 标签页标题（<title>） */
+  tabTitle: '家玉的博客',
   author: 'Yu',
   description: '记录 · 思考 · 建造 —— Yu 的个人博客',
   coords: '31.2304°N 121.4737°E', // 装饰坐标（上海）

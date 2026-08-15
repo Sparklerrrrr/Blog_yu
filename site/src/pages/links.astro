@@ -1,0 +1,23 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE } from '../lib/site';
+---
+
+<BaseLayout title="链接">
+  <section class="container">
+    <div class="panel reveal-x">
+      <header class="page-head">
+        <p class="micro-label">LINKS // 友链</p>
+        <h1 class="display-title">链接</h1>
+      </header>
+      <div class="empty-state card">
+        <p class="micro-label">STANDBY</p>
+        <p class="empty-msg">友链建设中</p>
+        <p class="empty-hint">欢迎交换友链——先到 {SITE.zh} 的 Gitee 打个招呼吧。</p>
+      </div>
+      <p style="margin-top: var(--sp-5);">
+        <a class="tag" href="https://gitee.com/yu_sparklerrr" target="_blank" rel="noopener">Gitee →</a>
+      </p>
+    </div>
+  </section>
+</BaseLayout>

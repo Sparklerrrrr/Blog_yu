@@ -26,7 +26,7 @@ const mins = readingTime(post.body);
 
 <BaseLayout title={post.data.title} description={post.data.description}>
   <div class="container-narrow" style="padding-block: var(--sp-9);">
-    <article class="panel" data-category={post.data.category}>
+    <article class="panel reveal-x" data-category={post.data.category}>
       <header class="post-head reveal">
       <p class="micro-label">
         <a href={`/posts/?cat=${post.data.category}`}>

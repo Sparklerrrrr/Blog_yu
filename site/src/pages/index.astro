@@ -15,7 +15,7 @@ const cats = Object.entries(CATEGORIES);
   <Hero />
 
   <section id="latest" class="section container">
-    <div class="panel">
+    <div class="panel reveal-x">
       <SectionHead eyebrow="LATEST // 最新" title="最新文章" />
       {
         latest.length > 0 ? (
@@ -32,7 +32,7 @@ const cats = Object.entries(CATEGORIES);
   </section>
 
   <section id="categories" class="section container">
-    <div class="panel">
+    <div class="panel reveal-x" style="--reveal-delay:80ms">
       <SectionHead eyebrow="CATEGORIES // 分类" title="分类入口" />
       <div class="cat-grid">
         {cats.map(([id, cat], i) => (
@@ -53,7 +53,7 @@ const cats = Object.entries(CATEGORIES);
   </section>
 
   <section id="about-brief" class="section container">
-    <div class="panel">
+    <div class="panel reveal-x" style="--reveal-delay:160ms">
       <SectionHead eyebrow="ABOUT // 关于" title="关于本站" />
       <p class="about-brief">
         这里是{SITE.zh}，{SITE.author} 的个人博客——记录技术、生活与思考。灵感来自鹰角网络与《明日方舟》的平面设计。

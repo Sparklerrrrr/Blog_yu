@@ -1,0 +1,75 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ArticleCard from '../components/ArticleCard.astro';
+import { getPosts } from '../lib/site';
+
+const posts = await getPosts();
+---
+
+<BaseLayout title="搜索">
+  <section class="container">
+    <div class="panel reveal-x">
+      <header class="page-head">
+        <p class="micro-label">SEARCH // 搜索</p>
+        <h1 class="display-title">搜索</h1>
+      </header>
+
+      <input
+        id="search-input"
+        class="search-input"
+        type="search"
+        placeholder="输入关键词，搜索标题 / 摘要 / 标签…"
+        autocomplete="off"
+      />
+
+      <div class="card-grid" id="search-results" style="margin-top: var(--sp-6);">
+        {
+          posts.map((post, i) => (
+            <div
+              class="search-item"
+              data-title={post.data.title}
+              data-desc={post.data.description ?? ''}
+              data-tags={post.data.tags.join(' ')}
+              data-cat={post.data.category}
+            >
+              <ArticleCard post={post} delay={i * 40} />
+            </div>
+          ))
+        }
+      </div>
+
+      <div class="empty-state" id="search-empty" hidden>
+        <p class="micro-label">NO RESULT</p>
+        <p class="empty-msg">没有找到相关文章</p>
+        <p class="empty-hint">换个关键词试试。</p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  const input = document.getElementById('search-input') as HTMLInputElement | null;
+  const items = Array.from(document.querySelectorAll<HTMLElement>('.search-item'));
+  const empty = document.getElementById('search-empty');
+
+  input?.addEventListener('input', () => {
+    const kw = (input.value ?? '').trim().toLowerCase();
+    let n = 0;
+    items.forEach((el) => {
+      const hay = [el.dataset.title, el.dataset.desc, el.dataset.tags, el.dataset.cat]
+        .join(' ')
+        .toLowerCase();
+      const show = !kw || hay.includes(kw);
+      el.style.display = show ? '' : 'none';
+      if (show) n += 1;
+    });
+    if (empty) empty.hidden = n > 0;
+  });
+
+  // 支持 /search/?q=关键词 直达（标签云链接用）
+  const q = new URLSearchParams(location.search).get('q');
+  if (q && input) {
+    input.value = q;
+    input.dispatchEvent(new Event('input'));
+  }
+</script>
