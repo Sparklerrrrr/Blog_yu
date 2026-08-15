@@ -102,10 +102,10 @@ const total = watching.length + want.length + watched.length;
       {
         total === 0 ? (
           <div class="empty-state card">
-            <p class="micro-label">PRIVATE</p>
-            <p class="empty-msg">拉取不到追番列表</p>
+            <p class="micro-label">SYNC PENDING</p>
+            <p class="empty-msg">追番列表暂时为空</p>
             <p class="empty-hint">
-              请先在 B 站公开追番列表：空间设置 → 隐私设置 → 公开「追番/追剧」，然后重新构建站点。
+              可能原因：① B 站接口临时风控（稍后自动恢复，重新构建即可同步）；② 追番列表未公开（B 站：空间设置 → 隐私设置 → 公开「追番/追剧」）。
             </p>
           </div>
         ) : (
