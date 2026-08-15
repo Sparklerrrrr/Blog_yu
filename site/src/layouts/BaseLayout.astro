@@ -28,8 +28,17 @@ const fullTitle = title ? `${title} | ${SITE.zh}` : `${SITE.zh} | ${SITE.en}`;
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Noto+Serif+SC:wght@600;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <script is:inline>
+      // 主题防闪烁：尽早恢复明暗偏好（浅色冰川 / 暗色冰川）
+      try {
+        document.documentElement.dataset.theme = localStorage.getItem('blog-theme') || 'light';
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    </script>
   </head>
   <body>
+    <div id="progress-bar" aria-hidden="true"></div>
     <TopNav />
     <main>
       <slot />

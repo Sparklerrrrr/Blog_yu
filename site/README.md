@@ -1,6 +1,6 @@
 # BLOG_YU · 家玉的小站
 
-鹰角网络 / 明日方舟风格的 Astro 个人博客。暗色底 + 冰川蓝点缀 + 锐利直角 + 0.3s 克制动效。
+鹰角网络 / 明日方舟结构 + 浅色冰川蓝主题的 Astro 个人博客（设计借鉴 [清风博客](https://blog.myqfeng.top/) 与 [070219.xyz](https://070219.xyz/)）。整体冰川蓝色调：有色调的中性色 + 柔和渐变 + 明显选中高亮 + 克制动效。
 
 设计文档在项目上级目录：`../style-notes.md`（风格笔记）、`../BUILD-PLAN.md`（施工蓝图）、`../design-system.css`（起步草案，已落地为 `src/styles/design-system.css`）。
 
@@ -52,6 +52,8 @@ site/
 
 ## 定制
 
-- **换配色**：改 `src/styles/design-system.css` 顶部 `:root` 里的 `--accent`（当前冰川蓝 `#7ec8e3`），或给页面根元素挂 `data-skin="ark" / "hg" / "cc"` 切换备用皮肤
+- **换配色**：改 `src/styles/design-system.css` 顶部 `:root` 里的 `--accent`（当前冰川蓝 `#3f9bc2`，选中底色 `--accent-soft` `#7ec8e3`，链接用 `--accent-deep` `#1f7397`），或给页面根元素挂 `data-skin="ark" / "hg" / "cc"` 切回暗色备用皮肤
+- **选中高亮**：`::selection` 样式在 CSS 里（`--selection-bg` / `--selection-fg`），选中文字即显示冰川蓝高亮
+- **封面渐变占位**：给元素加 `class="cover-ph"` 得到冰川蓝柔和渐变（供文章封面使用）
 - **站点信息**：改 `src/lib/site.ts` 的 `SITE`（站名/署名/描述/坐标）
 - **增删分类**：改 `src/lib/site.ts` 的 `CATEGORIES` 与 `src/content.config.ts` 的 `category` 枚举，再在 CSS 里补对应 `--cat-*` 色值

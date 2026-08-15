@@ -1,35 +1,168 @@
 ---
-const links = [
-  { href: '/', en: 'HOME', zh: '首页' },
-  { href: '/posts/', en: 'ARCHIVE', zh: '文章' },
-  { href: '/about/', en: 'ABOUT', zh: '关于' },
-];
+import { CATEGORIES, getPosts } from '../lib/site';
+
+const posts = await getPosts();
+const counts: Record<string, number> = { all: posts.length };
+for (const p of posts) {
+  counts[p.data.category] = (counts[p.data.category] ?? 0) + 1;
+}
+const cats = Object.entries(CATEGORIES);
 const path = Astro.url.pathname.replace(/\/+$/, '');
+const isPosts = path.startsWith('/posts');
 ---
 
 <header class="site-nav" id="site-nav">
-  <a class="brand" href="/">BLOG_YU</a>
-  <nav aria-label="主导航">
-    {
-      links.map((link) => {
-        const active =
-          path === link.href.replace(/\/+$/, '') ||
-          (link.href !== '/' && path.startsWith(link.href));
-        return (
-          <a href={link.href} aria-current={active ? 'page' : undefined}>
-            {link.zh}
+  <div class="nav-inner">
+    <!-- 品牌区 -->
+    <a class="nav-brand" href="/" aria-label="回到首页">
+      <span class="nav-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+          <path d="M5 19V5l14 0v14h-8v-6h-6v6z" />
+        </svg>
+      </span>
+      <span>BLOG_YU</span>
+    </a>
+
+    <!-- 中间菜单 -->
+    <nav class="nav-center" aria-label="主导航">
+      <a href="/" class="nav-item" aria-current={path === '' ? 'page' : undefined}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter"><path d="M4 10.5 12 4l8 6.5V20h-6v-6h-4v6H4z" /></svg>
+        <span>首页</span>
+      </a>
+
+      <div class="dropdown" data-dropdown>
+        <button type="button" class="nav-item" aria-expanded="false" aria-haspopup="true" data-dropdown-trigger aria-current={isPosts ? 'page' : undefined}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14v6H5zM5 14h14v6H5z" /></svg>
+          <span>文章</span>
+          <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9.5l6 6 6-6" /></svg>
+        </button>
+        <div class="dropdown-menu" data-dropdown-menu role="menu">
+          <a class="dropdown-item" href="/posts/" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v5H4zM4 11h16v5H4zM4 17h16v3H4z" /></svg>
+            <span>全部文章</span>
+            <span class="pill-count">{counts.all}</span>
           </a>
-        );
-      })
+          <div class="dropdown-divider"></div>
+          {
+            cats.map(([id, cat]) => (
+              <a class="dropdown-item" href={`/posts/?cat=${id}`} role="menuitem">
+                <span class="cat-dot" style={`background:${cat.color}`} aria-hidden="true"></span>
+                <span>{cat.zh}</span>
+                <span class="cat-en">{cat.en}</span>
+                <span class="pill-count">{counts[id] ?? 0}</span>
+              </a>
+            ))
+          }
+        </div>
+      </div>
+
+      <a href="/about/" class="nav-item" aria-current={path === '/about' ? 'page' : undefined}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5" /><path d="M12 7.6v.2" /></svg>
+        <span>关于</span>
+      </a>
+    </nav>
+
+    <!-- 右侧工具区 -->
+    <div class="nav-right">
+      <button type="button" class="icon-btn" id="theme-toggle" aria-label="切换明暗主题" title="切换明暗主题">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z" /></svg>
+      </button>
+      <a class="icon-btn" href="https://gitee.com/yu_sparklerrr/blog_yu" target="_blank" rel="noopener" aria-label="Gitee 仓库" title="Gitee 仓库">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="5" r="2.6" /><circle cx="18" cy="5" r="2.6" /><circle cx="6" cy="19" r="2.6" /><path d="M6 7.6v8.8M18 7.6A7 7 0 0 0 8 12" /></svg>
+      </a>
+      <button type="button" class="icon-btn hamburger" id="menu-toggle" aria-label="打开菜单" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- 移动端折叠菜单 -->
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <a href="/">首页 HOME</a>
+    <a href="/posts/">全部文章 ARCHIVE</a>
+    {
+      cats.map(([id, cat]) => (
+        <a href={`/posts/?cat=${id}`}>
+          <span class="cat-dot" style={`background:${cat.color}`} aria-hidden="true"></span>
+          <span>{cat.zh}</span>
+          <span class="cat-en">{cat.en}</span>
+          <span class="pill-count">{counts[id] ?? 0}</span>
+        </a>
+      ))
     }
-  </nav>
+    <a href="/about/">关于 ABOUT</a>
+  </div>
 </header>
 
 <script>
+  // ---- 滚动玻璃 + 阅读进度条 ----
   const nav = document.getElementById('site-nav');
+  const bar = document.getElementById('progress-bar');
   const onScroll = () => {
     nav?.classList.toggle('is-scrolled', window.scrollY > 24);
+    if (bar) {
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - doc.clientHeight;
+      bar.style.width = `${max > 0 ? (window.scrollY / max) * 100 : 0}%`;
+    }
   };
   onScroll();
   window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+
+  // ---- 下拉菜单（点击开合 + 键盘 + 点击外部关闭） ----
+  const dropdown = document.querySelector<HTMLElement>('[data-dropdown]');
+  const trigger = dropdown?.querySelector<HTMLButtonElement>('[data-dropdown-trigger]');
+  const menu = dropdown?.querySelector<HTMLElement>('[data-dropdown-menu]');
+  const setOpen = (open: boolean) => {
+    dropdown?.classList.toggle('open', open);
+    trigger?.setAttribute('aria-expanded', String(open));
+  };
+  trigger?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setOpen(!dropdown?.classList.contains('open'));
+  });
+  document.addEventListener('click', (e) => {
+    if (dropdown && !dropdown.contains(e.target as Node)) setOpen(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setOpen(false);
+  });
+
+  // ---- 移动端菜单 ----
+  const menuToggle = document.getElementById('menu-toggle');
+  const mobileMenu = document.getElementById('mobile-menu');
+  const setMenu = (open: boolean) => {
+    mobileMenu?.toggleAttribute('hidden', !open);
+    menuToggle?.setAttribute('aria-expanded', String(open));
+    menuToggle?.setAttribute('aria-label', open ? '关闭菜单' : '打开菜单');
+  };
+  menuToggle?.addEventListener('click', () => {
+    setMenu(mobileMenu?.hasAttribute('hidden') ?? true);
+  });
+  mobileMenu?.querySelectorAll('a').forEach((a) =>
+    a.addEventListener('click', () => setMenu(false))
+  );
+
+  // ---- 明暗主题切换（浅色冰川 / 暗色冰川，记忆在 localStorage） ----
+  const THEME_KEY = 'blog-theme';
+  const themeBtn = document.getElementById('theme-toggle');
+  const moonIcon =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>';
+  const sunIcon =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.8v2.2M12 19v2.2M2.8 12H5M19 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg>';
+  const applyTheme = (theme: string) => {
+    document.documentElement.dataset.theme = theme;
+    if (themeBtn) themeBtn.innerHTML = theme === 'dark' ? sunIcon : moonIcon;
+  };
+  applyTheme(document.documentElement.dataset.theme || 'light');
+  themeBtn?.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try {
+      localStorage.setItem(THEME_KEY, next);
+    } catch {
+      /* 隐私模式下忽略 */
+    }
+  });
 </script>

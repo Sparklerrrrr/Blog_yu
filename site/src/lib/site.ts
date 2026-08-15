@@ -11,9 +11,9 @@ export const SITE = {
 
 /** 分类元信息（与 design-system.css 中的 --cat-* 对应） */
 export const CATEGORIES = {
-  tech: { en: 'TECH', zh: '技术', color: '#7ec8e3' },
-  life: { en: 'LIFE', zh: '生活', color: '#fdf900' },
-  thoughts: { en: 'THOUGHTS', zh: '思考', color: '#f7dcf0' },
+  tech: { en: 'TECH', zh: '技术', color: '#2e86ab' },
+  life: { en: 'LIFE', zh: '生活', color: '#c08a00' },
+  thoughts: { en: 'THOUGHTS', zh: '思考', color: '#c26aa5' },
 } as const;
 
 export type CategoryId = keyof typeof CATEGORIES;
