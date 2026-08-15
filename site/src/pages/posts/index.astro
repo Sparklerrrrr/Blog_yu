@@ -10,10 +10,11 @@ const cats = Object.entries(CATEGORIES);
 
 <BaseLayout title="文章归档">
   <section class="container">
-    <header class="page-head">
-      <p class="micro-label">ARCHIVE // 归档</p>
-      <h1 class="display-title">全部文章</h1>
-      <p class="micro-label" style="margin-top: var(--sp-3);">TOTAL // {posts.length}</p>
+    <div class="panel">
+      <header class="page-head">
+        <p class="micro-label">ARCHIVE // 归档</p>
+        <h1 class="display-title">全部文章</h1>
+        <p class="micro-label" style="margin-top: var(--sp-3);">TOTAL // {posts.length}</p>
     </header>
 
     <div class="filter-bar">
@@ -32,14 +33,15 @@ const cats = Object.entries(CATEGORIES);
         <EmptyState />
       ) : (
         <div class="card-grid" id="post-grid">
-          {posts.map((post) => (
+          {posts.map((post, i) => (
             <div class="filter-item" data-cat={post.data.category}>
-              <ArticleCard post={post} />
+              <ArticleCard post={post} delay={i * 50} />
             </div>
           ))}
         </div>
       )
     }
+    </div>
   </section>
 </BaseLayout>
 

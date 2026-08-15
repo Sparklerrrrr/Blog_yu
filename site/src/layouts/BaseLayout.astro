@@ -1,4 +1,5 @@
 ---
+import { ClientRouter } from 'astro:transitions';
 import TopNav from '../components/TopNav.astro';
 import Footer from '../components/Footer.astro';
 import { SITE } from '../lib/site';
@@ -28,8 +29,10 @@ const fullTitle = title ? `${title} | ${SITE.zh}` : `${SITE.zh} | ${SITE.en}`;
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Noto+Serif+SC:wght@600;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <ClientRouter />
     <script is:inline>
       // 主题防闪烁：尽早恢复明暗偏好（浅色冰川 / 暗色冰川）
+      document.documentElement.classList.add('js');
       try {
         document.documentElement.dataset.theme = localStorage.getItem('blog-theme') || 'light';
       } catch (e) {
@@ -39,10 +42,174 @@ const fullTitle = title ? `${title} | ${SITE.zh}` : `${SITE.zh} | ${SITE.en}`;
   </head>
   <body>
     <div id="progress-bar" aria-hidden="true"></div>
+    <div class="top-glow" aria-hidden="true"></div>
     <TopNav />
     <main>
       <slot />
     </main>
     <Footer />
+
+    <script>
+      // ===== 全局交互（事件委托 + astro:page-load，页面切换后依然有效） =====
+      const q = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel);
+
+  // ---- 滚动状态：顶栏玻璃 / 顶部进度条 / 阅读进度环 ----
+  let lastScrollY = 0;
+  const syncScroll = () => {
+    const nav = q('#site-nav');
+    const y = window.scrollY;
+    if (nav) {
+      nav.classList.toggle('is-scrolled', y > 24);
+      // 可伸缩导航：向下滚动隐藏，向上滚动或回到顶部时收回
+      const menuOpen = !(q('#mobile-menu')?.hasAttribute('hidden') ?? true);
+      const goingDown = y > lastScrollY && y - lastScrollY > 2;
+      nav.classList.toggle('is-hidden', goingDown && y > 220 && !menuOpen);
+    }
+    lastScrollY = y;
+    const bar = q('#progress-bar');
+    if (bar) {
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - doc.clientHeight;
+      bar.style.width = `${max > 0 ? (window.scrollY / max) * 100 : 0}%`;
+    }
+    const ring = q('#progress-ring');
+    if (ring) {
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - doc.clientHeight;
+      const p = max > 0 ? Math.min(100, (window.scrollY / max) * 100) : 0;
+      ring.classList.toggle('is-visible', window.scrollY > 100);
+      ring.querySelector('.bar')?.setAttribute('stroke-dasharray', `${p.toFixed(1)} 100`);
+      ring.setAttribute('aria-label', `返回顶部（已阅读 ${Math.round(p)}%）`);
+    }
+  };
+  window.addEventListener('scroll', syncScroll, { passive: true });
+  window.addEventListener('resize', syncScroll);
+
+  // ---- 点击：下拉 / 移动菜单 / 主题切换 / 进度环回顶（全部事件委托） ----
+  document.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+
+    // 下拉菜单
+    const dropdown = q('[data-dropdown]');
+    if (dropdown && t.closest('[data-dropdown-trigger]')) {
+      const open = !dropdown.classList.contains('open');
+      dropdown.classList.toggle('open', open);
+      dropdown
+        .querySelector('[data-dropdown-trigger]')
+        ?.setAttribute('aria-expanded', String(open));
+    } else if (dropdown && !t.closest('[data-dropdown]')) {
+      dropdown.classList.remove('open');
+      dropdown.querySelector('[data-dropdown-trigger]')?.setAttribute('aria-expanded', 'false');
+    }
+
+    // 移动端菜单
+    const menuBtn = t.closest('#menu-toggle');
+    if (menuBtn) {
+      const menu = q('#mobile-menu');
+      const open = menu?.hasAttribute('hidden') ?? true;
+      menu?.toggleAttribute('hidden', !open);
+      menuBtn.setAttribute('aria-expanded', String(open));
+      menuBtn.setAttribute('aria-label', open ? '关闭菜单' : '打开菜单');
+    } else if (t.closest('#mobile-menu a')) {
+      q('#mobile-menu')?.setAttribute('hidden', '');
+      q('#menu-toggle')?.setAttribute('aria-expanded', 'false');
+    }
+
+    // 明暗主题切换
+    if (t.closest('#theme-toggle')) {
+      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      try {
+        localStorage.setItem('blog-theme', next);
+      } catch {
+        /* 隐私模式下忽略 */
+      }
+      syncThemeIcon();
+    }
+
+    // 阅读进度环：回到顶部
+    if (t.closest('#progress-ring')) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const d = q('[data-dropdown]');
+      d?.classList.remove('open');
+      d?.querySelector('[data-dropdown-trigger]')?.setAttribute('aria-expanded', 'false');
+      q('#mobile-menu')?.setAttribute('hidden', '');
+      q('#menu-toggle')?.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  // ---- 主题切换按钮图标 ----
+  const moonIcon =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>';
+  const sunIcon =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.8v2.2M12 19v2.2M2.8 12H5M19 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg>';
+  function syncThemeIcon() {
+    const btn = q('#theme-toggle');
+    if (btn) btn.innerHTML = document.documentElement.dataset.theme === 'dark' ? sunIcon : moonIcon;
+  }
+  syncThemeIcon();
+
+  // ---- 滚动显现（IntersectionObserver；导航到新页面后重新扫描） ----
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let io: IntersectionObserver | null = null;
+  const observeReveals = () => {
+    io?.disconnect();
+    if (reduceMotion) {
+      document.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-in'));
+      return;
+    }
+    io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting) {
+            en.target.classList.add('is-in');
+            io?.unobserve(en.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -32px 0px' }
+    );
+    document.querySelectorAll('.reveal:not(.is-in)').forEach((el) => io?.observe(el));
+  };
+
+  // ---- 卡片 3D 倾斜（仅鼠标/触控板等精细指针，减弱动效偏好时关闭） ----
+  const canTilt =
+    !reduceMotion && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const bindTilt = () => {
+    if (!canTilt) return;
+    document.querySelectorAll<HTMLElement>('[data-tilt]').forEach((card) => {
+      if (card.dataset.tiltBound) return;
+      card.dataset.tiltBound = '1';
+      let raf = 0;
+      card.addEventListener('pointermove', (e) => {
+        const r = card.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width - 0.5;
+        const y = (e.clientY - r.top) / r.height - 0.5;
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+          card.style.transform = `translateY(-6px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg)`;
+        });
+      });
+      card.addEventListener('pointerleave', () => {
+        cancelAnimationFrame(raf);
+        card.style.transform = '';
+      });
+    });
+  };
+
+  const init = () => {
+    syncScroll();
+    syncThemeIcon();
+    observeReveals();
+    bindTilt();
+  };
+  init();
+  document.addEventListener('astro:page-load', init);
+    </script>
   </body>
 </html>

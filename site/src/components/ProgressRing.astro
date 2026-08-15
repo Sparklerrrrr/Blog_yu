@@ -21,23 +21,3 @@
     <path d="M12 19V5m0 0-6 6m6-6 6 6"></path>
   </svg>
 </button>
-
-<script>
-  const btn = document.getElementById('progress-ring');
-  const barEl = btn?.querySelector<SVGCircleElement>('.bar');
-
-  const update = () => {
-    if (!btn) return;
-    const doc = document.documentElement;
-    const max = doc.scrollHeight - doc.clientHeight;
-    const p = max > 0 ? Math.min(100, (window.scrollY / max) * 100) : 0;
-    btn.classList.toggle('is-visible', window.scrollY > 100);
-    barEl?.setAttribute('stroke-dasharray', `${p.toFixed(1)} 100`);
-    btn.setAttribute('aria-label', `返回顶部（已阅读 ${Math.round(p)}%）`);
-  };
-
-  update();
-  window.addEventListener('scroll', update, { passive: true });
-  window.addEventListener('resize', update);
-  btn?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-</script>

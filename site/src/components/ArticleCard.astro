@@ -5,13 +5,14 @@ import Tag from './Tag.astro';
 
 interface Props {
   post: CollectionEntry<'posts'>;
+  delay?: number;
 }
 
-const { post } = Astro.props;
+const { post, delay = 0 } = Astro.props;
 const cat = CATEGORIES[post.data.category];
 ---
 
-<article class="card article-card" data-category={post.data.category}>
+<article class="card article-card reveal" data-category={post.data.category} data-tilt style={`--reveal-delay:${delay}ms`}>
   <a class="card-link" href={`/posts/${post.id}/`}>
     <p class="micro-label">
       {cat.en} <span class="num">// {formatDate(post.data.date)}</span>

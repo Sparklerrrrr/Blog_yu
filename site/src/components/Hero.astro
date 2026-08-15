@@ -6,13 +6,18 @@ interface Props {
 }
 
 const { en = 'BLOG_YU', zh = '家玉的小站', slogan = '记录 · 思考 · 建造' } = Astro.props;
+const letters = [...en];
 ---
 
 <section class="hero">
   <span class="watermark" aria-hidden="true">001</span>
-  <div class="entrance">
+  <div>
     <p class="micro-label">INDEX // EST. 2026</p>
-    <h1 class="title">{en}</h1>
+    <h1 class="title" aria-label={en}>
+      {letters.map((ch, i) => (
+        <span class="ch" aria-hidden="true" style={`--ch-i:${i}`}>{ch}</span>
+      ))}
+    </h1>
     <p class="slogan">
       {zh} — {slogan}
     </p>
@@ -21,4 +26,23 @@ const { en = 'BLOG_YU', zh = '家玉的小站', slogan = '记录 · 思考 · �
     <span class="micro-label">SCROLL</span>
     <span class="scroll-line" aria-hidden="true"></span>
   </a>
+
+  <!-- 底部漂移波浪（gentle-wave 风格，多层不同速度） -->
+  <div class="waves" aria-hidden="true">
+    <svg viewBox="0 0 2880 120" preserveAspectRatio="none" style="--wave-dur:26s; opacity:0.55;">
+      <path
+        fill="var(--accent-soft)"
+        d="M0,72 Q180,32 360,72 T720,72 T1080,72 T1440,72 T1800,72 T2160,72 T2520,72 T2880,72 L2880,120 L0,120 Z"></path>
+    </svg>
+    <svg viewBox="0 0 2880 120" preserveAspectRatio="none" style="--wave-dur:40s; --wave-delay:-8s; opacity:0.35;">
+      <path
+        fill="var(--accent-soft)"
+        d="M0,88 Q180,48 360,88 T720,88 T1080,88 T1440,88 T1800,88 T2160,88 T2520,88 T2880,88 L2880,120 L0,120 Z"></path>
+    </svg>
+    <svg viewBox="0 0 2880 120" preserveAspectRatio="none" style="--wave-dur:18s; --wave-delay:-4s; opacity:0.22;">
+      <path
+        fill="var(--accent-soft)"
+        d="M0,96 Q180,60 360,96 T720,96 T1080,96 T1440,96 T1800,96 T2160,96 T2520,96 T2880,96 L2880,120 L0,120 Z"></path>
+    </svg>
+  </div>
 </section>

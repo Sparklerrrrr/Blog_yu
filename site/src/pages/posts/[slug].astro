@@ -25,8 +25,9 @@ const mins = readingTime(post.body);
 ---
 
 <BaseLayout title={post.data.title} description={post.data.description}>
-  <article class="post container-narrow" data-category={post.data.category}>
-    <header class="post-head">
+  <div class="container-narrow" style="padding-block: var(--sp-9);">
+    <article class="panel" data-category={post.data.category}>
+      <header class="post-head reveal">
       <p class="micro-label">
         <a href={`/posts/?cat=${post.data.category}`}>
           {cat.zh} {cat.en}
@@ -51,8 +52,9 @@ const mins = readingTime(post.body);
         ))}
       </div>
       <a class="back" href="/posts/">← 返回归档</a>
-    </footer>
-  </article>
+      </footer>
+    </article>
+  </div>
 
   <ProgressRing />
 </BaseLayout>
