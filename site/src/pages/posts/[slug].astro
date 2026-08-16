@@ -4,6 +4,7 @@ import { render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Tag from '../../components/Tag.astro';
 import ProgressRing from '../../components/ProgressRing.astro';
+import Comments from '../../components/Comments.astro';
 import { CATEGORIES, formatDate, getPosts, readingTime, SITE } from '../../lib/site';
 
 interface Props {
@@ -54,6 +55,8 @@ const mins = readingTime(post.body);
       <a class="back" href="/posts/">← 返回归档</a>
       </footer>
     </article>
+
+    <Comments pageKey={`/posts/${post.id}/`} pageTitle={post.data.title} />
   </div>
 
   <ProgressRing />

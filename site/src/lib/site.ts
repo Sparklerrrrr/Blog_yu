@@ -11,6 +11,14 @@ export const SITE = {
   coords: '31.2304°N 121.4737°E', // 装饰坐标（上海）
 } as const;
 
+/** Artalk 评论系统配置 */
+export const ARTALK = {
+  /** 本地开发直连 23366；生产走 EdgeOne 反代域名（等 DNS 配好后自动生效） */
+  server: import.meta.env.DEV ? 'http://127.0.0.1:23366' : 'https://comment.sparklerrr.cn',
+  /** 与服务器 ATK_SITE_DEFAULT 保持一致 */
+  site: '家玉的博客',
+} as const;
+
 /** 分类元信息（与 design-system.css 中的 --cat-* 对应） */
 export const CATEGORIES = {
   tech: { en: 'TECH', zh: '技术', color: '#2e86ab' },

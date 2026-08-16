@@ -1,0 +1,135 @@
+---
+/**
+ * Artalk 评论组件
+ * - 文章页 / 留言板共用
+ * - 兼容 astro:transitions ClientRouter：页面切换时销毁旧实例并在新容器重建
+ * - 跟随博客 data-theme 明暗主题
+ * - 生产环境服务器地址在 src/lib/site.ts 的 ARTALK.server 统一配置
+ */
+import { ARTALK } from '../lib/site';
+
+interface Props {
+  /** 评论线程唯一标识，如 /posts/slug/ */
+  pageKey: string;
+  /** 评论框显示的页面标题 */
+  pageTitle: string;
+}
+
+const { pageKey, pageTitle } = Astro.props;
+---
+
+<section class="panel reveal-x comments-panel" aria-label="评论区">
+  <header class="page-head">
+    <p class="micro-label">COMMENTS // 评论</p>
+    <h2 class="comments-title">评论</h2>
+  </header>
+  <div
+    id="artalk-comments"
+    class="artalk-box"
+    data-server={ARTALK.server}
+    data-site={ARTALK.site}
+    data-page-key={pageKey}
+    data-page-title={pageTitle}
+  ></div>
+</section>
+
+<script is:inline>
+  (function () {
+    // 挂载：销毁旧实例（ClientRouter 切换后旧 DOM 已移除），在新容器上重建
+    function mount() {
+      var el = document.getElementById('artalk-comments');
+      var A = window.Artalk;
+      if (!el || !A || typeof A.init !== 'function') return;
+
+      var prev = window.__artalkInst;
+      if (prev && typeof prev.destroy === 'function') {
+        try {
+          prev.destroy();
+        } catch (e) {
+          /* 忽略 */
+        }
+      }
+
+      window.__artalkInst = A.init({
+        el: el,
+        server: el.dataset.server,
+        site: el.dataset.site,
+        pageKey: el.dataset.pageKey,
+        pageTitle: el.dataset.pageTitle,
+      });
+      syncTheme(window.__artalkInst);
+    }
+
+    // 跟随博客明暗主题（data-theme）
+    function syncTheme(inst) {
+      if (inst && typeof inst.setDarkMode === 'function') {
+        inst.setDarkMode(document.documentElement.getAttribute('data-theme') === 'dark');
+      }
+    }
+
+    // 只绑定一次观察器，避免每次页面切换重复监听
+    if (!window.__artalkThemeBound) {
+      window.__artalkThemeBound = true;
+      try {
+        new MutationObserver(function () {
+          var inst = window.__artalkInst;
+          if (inst) syncTheme(inst);
+        }).observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      } catch (e) {
+        /* 忽略 */
+      }
+    }
+
+    // 按需加载 Artalk 前端资源（CSS/JS 只注入一次，服务器域名统一走 data-server）
+    function ensureAssets() {
+      var el = document.getElementById('artalk-comments');
+      if (!el) return;
+      var server = el.dataset.server;
+
+      if (!document.getElementById('artalk-css')) {
+        var l = document.createElement('link');
+        l.id = 'artalk-css';
+        l.rel = 'stylesheet';
+        l.href = server + '/dist/Artalk.css';
+        document.head.appendChild(l);
+      }
+
+      if (window.Artalk && typeof window.Artalk.init === 'function') {
+        mount();
+        return;
+      }
+
+      var s = document.createElement('script');
+      s.src = server + '/dist/Artalk.js';
+      s.onload = function () {
+        mount();
+      };
+      s.onerror = function () {
+        console.error('[artalk] 前端资源加载失败：' + server);
+      };
+      document.head.appendChild(s);
+    }
+
+    // setTimeout(0)：确保在 ClientRouter 完成 DOM 替换后再挂载
+    setTimeout(ensureAssets, 0);
+  })();
+</script>
+
+<style>
+  .comments-panel {
+    margin-top: var(--sp-7);
+  }
+  .comments-title {
+    margin: var(--sp-2) 0 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .artalk-box {
+    width: 100%;
+    margin-top: var(--sp-5);
+  }
+</style>
