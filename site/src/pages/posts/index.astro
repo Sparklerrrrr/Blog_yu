@@ -2,45 +2,81 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleCard from '../../components/ArticleCard.astro';
 import EmptyState from '../../components/EmptyState.astro';
-import { CATEGORIES, getPosts } from '../../lib/site';
+import { CATEGORIES, countTags, getPosts } from '../../lib/site';
 
 const posts = await getPosts();
 const cats = Object.entries(CATEGORIES);
+const tags = countTags(posts);
 ---
 
-<BaseLayout title="文章归档">
+<BaseLayout title="文章">
   <section class="container">
     <div class="panel reveal-x">
       <header class="page-head">
-        <p class="micro-label">ARCHIVE // 归档</p>
+        <p class="micro-label">ARCHIVE // 文章</p>
         <h1 class="display-title">全部文章</h1>
         <p class="micro-label" style="margin-top: var(--sp-3);">TOTAL // {posts.length}</p>
-    </header>
+      </header>
 
-    <div class="filter-bar">
-      <button type="button" class="tag filter-btn is-active" data-filter="all">全部 ALL</button>
-      {
-        cats.map(([id, cat]) => (
+      <div class="filter-bar">
+        <input
+          id="filter-q"
+          class="search-input filter-search"
+          type="search"
+          placeholder="搜索标题 / 摘要 / 标签…"
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="filter-bar">
+        <button type="button" class="tag filter-btn is-active" data-filter="all">全部 ALL</button>
+        {cats.map(([id, cat]) => (
           <button type="button" class="tag filter-btn" data-filter={id}>
             {cat.zh} {cat.en}
           </button>
-        ))
-      }
-    </div>
+        ))}
+      </div>
 
-    {
-      posts.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <div class="card-grid" id="post-grid">
-          {posts.map((post, i) => (
-            <div class="filter-item" data-cat={post.data.category}>
-              <ArticleCard post={post} delay={i * 50} />
-            </div>
+      {tags.length > 0 && (
+        <div class="filter-bar">
+          {tags.map(([tag, n]) => (
+            <button type="button" class="tag filter-btn filter-btn-tag" data-filter-tag={tag}>
+              {tag} <span class="tag-count">{n}</span>
+            </button>
           ))}
         </div>
-      )
-    }
+      )}
+
+      <div class="filter-status">
+        <p class="micro-label" id="filter-count">SHOWING // {posts.length}</p>
+        <button type="button" class="tag" id="filter-reset" hidden>清除筛选 RESET</button>
+      </div>
+
+      {
+        posts.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div class="card-grid" id="post-grid">
+            {posts.map((post, i) => (
+              <div
+                class="filter-item"
+                data-cat={post.data.category}
+                data-tags={JSON.stringify(post.data.tags)}
+                data-title={post.data.title}
+                data-desc={post.data.description ?? ''}
+              >
+                <ArticleCard post={post} delay={i * 50} />
+              </div>
+            ))}
+          </div>
+        )
+      }
+
+      <div class="empty-state" id="filter-empty" hidden>
+        <p class="micro-label">EMPTY</p>
+        <p class="empty-msg">没有符合条件的文章</p>
+        <p class="empty-hint">试试清除筛选或换个关键词。</p>
+      </div>
     </div>
   </section>
 </BaseLayout>
@@ -49,38 +85,81 @@ const cats = Object.entries(CATEGORIES);
   const grid = document.getElementById('post-grid');
   if (grid) {
     const items = Array.from(grid.querySelectorAll<HTMLElement>('.filter-item'));
-    const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('.filter-btn'));
-    const valid = new Set(['all', ...buttons.map((b) => b.dataset.filter ?? '')]);
-    let emptyNote: HTMLElement | null = null;
+    const catBtns = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.filter-btn:not(.filter-btn-tag)'),
+    );
+    const tagBtns = Array.from(document.querySelectorAll<HTMLButtonElement>('.filter-btn-tag'));
+    const qInput = document.getElementById('filter-q') as HTMLInputElement | null;
+    const countEl = document.getElementById('filter-count');
+    const emptyEl = document.getElementById('filter-empty');
+    const resetBtn = document.getElementById('filter-reset');
+    const validCats = new Set(['all', ...catBtns.map((b) => b.dataset.filter ?? '')]);
 
-    function apply(cat: string) {
-      buttons.forEach((b) => b.classList.toggle('is-active', b.dataset.filter === cat));
+    const state = { cat: 'all', tag: '', q: '' };
+
+    function apply() {
+      catBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.filter === state.cat));
+      tagBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.filterTag === state.tag));
+      if (qInput && qInput.value !== state.q) qInput.value = state.q;
       let count = 0;
+      const q = state.q.trim().toLowerCase();
       items.forEach((el) => {
-        const show = cat === 'all' || el.dataset.cat === cat;
+        let tags: string[] = [];
+        try {
+          tags = JSON.parse(el.dataset.tags || '[]');
+        } catch {
+          tags = [];
+        }
+        const okCat = state.cat === 'all' || el.dataset.cat === state.cat;
+        const okTag = !state.tag || tags.includes(state.tag);
+        const hay = [el.dataset.title, el.dataset.desc, el.dataset.cat, ...tags].join(' ').toLowerCase();
+        const okQ = !q || hay.includes(q);
+        const show = okCat && okTag && okQ;
         el.style.display = show ? '' : 'none';
         if (show) count += 1;
       });
-      emptyNote?.remove();
-      emptyNote = null;
-      if (count === 0) {
-        emptyNote = document.createElement('div');
-        emptyNote.className = 'empty-state card';
-        emptyNote.innerHTML =
-          '<p class="micro-label">EMPTY</p><p class="empty-msg">该分类暂无文章</p>';
-        grid.appendChild(emptyNote);
-      }
+      if (countEl) countEl.textContent = 'SHOWING // ' + count + ' / ' + items.length;
+      if (emptyEl) emptyEl.hidden = count > 0;
+      if (resetBtn) resetBtn.hidden = state.cat === 'all' && !state.tag && !state.q;
       const url = new URL(location.href);
-      if (cat === 'all') {
-        url.searchParams.delete('cat');
-      } else {
-        url.searchParams.set('cat', cat);
-      }
+      if (state.cat === 'all') url.searchParams.delete('cat');
+      else url.searchParams.set('cat', state.cat);
+      if (!state.tag) url.searchParams.delete('tag');
+      else url.searchParams.set('tag', state.tag);
+      if (!state.q) url.searchParams.delete('q');
+      else url.searchParams.set('q', state.q);
       history.replaceState(null, '', url);
     }
 
-    const raw = new URLSearchParams(location.search).get('cat') ?? 'all';
-    apply(valid.has(raw) ? raw : 'all');
-    buttons.forEach((b) => b.addEventListener('click', () => apply(b.dataset.filter ?? 'all')));
+    // 从 URL 恢复筛选状态（支持分享链接）
+    const raw = new URLSearchParams(location.search);
+    state.cat = validCats.has(raw.get('cat') ?? '') ? (raw.get('cat') as string) : 'all';
+    state.tag = raw.get('tag') ?? '';
+    state.q = raw.get('q') ?? '';
+    apply();
+
+    catBtns.forEach((b) =>
+      b.addEventListener('click', () => {
+        state.cat = b.dataset.filter ?? 'all';
+        apply();
+      }),
+    );
+    tagBtns.forEach((b) =>
+      b.addEventListener('click', () => {
+        const t = b.dataset.filterTag ?? '';
+        state.tag = state.tag === t ? '' : t; // 再点一次取消
+        apply();
+      }),
+    );
+    qInput?.addEventListener('input', () => {
+      state.q = qInput.value;
+      apply();
+    });
+    resetBtn?.addEventListener('click', () => {
+      state.cat = 'all';
+      state.tag = '';
+      state.q = '';
+      apply();
+    });
   }
 </script>

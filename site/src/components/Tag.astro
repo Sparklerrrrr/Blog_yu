@@ -4,6 +4,7 @@ interface Props {
 }
 
 const { text } = Astro.props;
+const href = `/tags/${encodeURIComponent(text)}/`;
 ---
 
-<span class="tag">{text}</span>
+<a class="tag" href={href}>{text}</a>

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/Hero.astro';
 import SectionHead from '../components/SectionHead.astro';
-import { CATEGORIES, formatDate, getPosts, SITE } from '../lib/site';
+import { CATEGORIES, formatDate, getPosts, readingTime, SITE } from '../lib/site';
 
 // 从 package.json 读取真实版本
 const pkg = JSON.parse(readFileSync('package.json', 'utf-8')); // cwd 为 site/
@@ -105,9 +105,12 @@ const accountLinks = [
                 return (
                   <li class="home-post-item" data-category={post.data.category}>
                     <a class="home-post-link" href={`/posts/${post.id}/`}>
-                      <span class="home-post-title">{post.data.title}</span>
+                      <span class="home-post-title">
+                        {post.data.pin && <span class="pin-chip">置顶</span>}
+                        {post.data.title}
+                      </span>
                       <span class="home-post-meta">
-                        {cat.zh} · {formatDate(post.data.date)}
+                        {cat.zh} · {formatDate(post.data.date)} · {readingTime(post.body)} 分钟
                       </span>
                     </a>
                   </li>
@@ -119,6 +122,22 @@ const accountLinks = [
           )
         }
       </div>
+
+      <aside class="panel reveal-x home-notice" style="--reveal-delay:160ms">
+        <div class="widget-title">
+          <span class="widget-bar" aria-hidden="true"></span>
+          <p class="micro-label">NOTICE // 公告</p>
+        </div>
+        <div class="notice-body">
+          <p class="notice-text">
+            欢迎来到我的博客！转载文章请标明出处：<a href="https://www.sparklerrr.cn/" target="_blank" rel="noopener">https://www.sparklerrr.cn/</a>
+          </p>
+          <div class="notice-actions">
+            <a class="tag" href="/about/">了解更多</a>
+            <button type="button" class="home-notice-close" aria-label="关闭公告">✕</button>
+          </div>
+        </div>
+      </aside>
     </div>
   </section>
 
@@ -288,3 +307,26 @@ const accountLinks = [
     </div>
   </section>
 </BaseLayout>
+
+<script>
+  // 公告：可关闭，记忆在 localStorage
+  // 公告关闭仅当前页面会话有效：刷新/重新进入首页时公告重新出现
+  document.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('.home-notice-close')) {
+      const el = document.querySelector<HTMLElement>('.home-notice');
+      if (el) el.classList.add('is-closed');
+      // 最新文章向右平推滑入（每次关闭都重放；动画结束后清理类，恢复毛玻璃）
+      const posts = document.querySelector<HTMLElement>('.home-posts');
+      if (posts) {
+        posts.classList.remove('push-anim');
+        void posts.offsetWidth; // 强制 reflow，重放动画
+        posts.classList.add('push-anim');
+        posts.addEventListener(
+          'animationend',
+          () => posts.classList.remove('push-anim'),
+          { once: true }
+        );
+      }
+    }
+  });
+</script>

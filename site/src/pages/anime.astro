@@ -2,9 +2,12 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { formatDateTime } from '../lib/site';
 
 const VMID = '421381039'; // B 站 UID
-const CACHE_FILE = new URL('../data/bangumi.json', import.meta.url);
+// 构建/开发时 cwd 均为项目根目录（site/），用绝对路径保证读写真实缓存文件
+const CACHE_FILE = join(process.cwd(), 'src/data/bangumi.json');
 
 interface Bangumi {
   title: string;
@@ -16,11 +19,31 @@ interface Bangumi {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** 封面兜底：1px 冰川蓝占位（cover 为空时用） */
+const FALLBACK_COVER =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="#c6ecf5"/><text x="150" y="205" font-size="16" fill="#1f7397" text-anchor="middle" font-family="monospace">NO COVER</text></svg>'
+  );
+
+/** 规范封面地址：补协议 / 空值兜底 */
+function normalizeCover(cover: unknown): string {
+  const raw = String(cover ?? '');
+  const url = raw.replace(/^http:\/\//, 'https://').replace(/^\/\//, 'https://');
+  return url || FALLBACK_COVER;
+}
+
+/** 进度文案：纯数字 → 「看到第 N 话」，其余（如「全12话」）原样显示 */
+function formatProgress(raw: string): string {
+  if (/^\d+$/.test(raw)) return '看到第 ' + raw + ' 话';
+  return raw;
+}
+
 async function fetchBangumi(followStatus: number): Promise<Bangumi[]> {
   // 单次快速尝试（8 秒超时），失败立即返回——页面渲染不能卡住
   try {
     const res = await fetch(
-      `https://api.bilibili.com/x/space/bangumi/follow/list?type=1&follow_status=${followStatus}&pn=1&ps=50&vmid=${VMID}`,
+      'https://api.bilibili.com/x/space/bangumi/follow/list?type=1&follow_status=' + followStatus + '&pn=1&ps=30&vmid=' + VMID,
       {
         headers: {
           'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120',
@@ -33,10 +56,10 @@ async function fetchBangumi(followStatus: number): Promise<Bangumi[]> {
     if (data.code !== 0 || !data.data?.list) return [];
     return (data.data.list as Array<Record<string, unknown>>).map((item) => ({
       title: String(item.title ?? ''),
-      cover: String(item.cover ?? '').replace('http://', 'https://'),
+      cover: normalizeCover(item.cover),
       url: String(item.url ?? ''),
       progress: item.new_ep && typeof item.new_ep === 'object'
-        ? String((item.new_ep as Record<string, unknown>).index_show ?? '')
+        ? formatProgress(String((item.new_ep as Record<string, unknown>).index_show ?? ''))
         : '',
       badge: item.badge ? String(item.badge) : undefined,
     }));
@@ -45,12 +68,26 @@ async function fetchBangumi(followStatus: number): Promise<Bangumi[]> {
   }
 }
 
-// 缓存优先：先读缓存；尝试一次快速刷新，成功则更新缓存，失败就用缓存
+interface BangumiCache {
+  watching?: Bangumi[];
+  want?: Bangumi[];
+  watched?: Bangumi[];
+  /** 最近一次成功同步的时间（ISO） */
+  updatedAt?: string;
+}
+
+// 缓存优先：先读缓存；尝试快速刷新，成功则更新缓存，失败就用缓存兜底
 async function loadBangumi() {
-  let cached: { watching?: Bangumi[]; want?: Bangumi[]; watched?: Bangumi[] } | null = null;
+  let cached: BangumiCache | null = null;
   try {
     cached = JSON.parse(readFileSync(CACHE_FILE, 'utf-8'));
   } catch { /* 无缓存 */ }
+
+  const writeCache = (result: BangumiCache) => {
+    try {
+      writeFileSync(CACHE_FILE, JSON.stringify(result, null, 2));
+    } catch { /* 忽略 */ }
+  };
 
   const watching = await fetchBangumi(0);
   if (watching.length > 0) {
@@ -59,25 +96,36 @@ async function loadBangumi() {
     const want = await fetchBangumi(1);
     await sleep(800);
     const watched = await fetchBangumi(2);
-    const result = { watching, want, watched };
-    try {
-      writeFileSync(CACHE_FILE, JSON.stringify(result, null, 2));
-    } catch { /* 忽略 */ }
+    const result: BangumiCache = { watching, want, watched, updatedAt: new Date().toISOString() };
+    writeCache(result);
     return result;
   }
 
-  // API 不可用：回退缓存（秒开）
-  if (cached?.watching) {
+  // 「在看」为空：可能真的没有在看，也可能是接口异常。再试另两组：
+  // 若任一组有数据，说明接口正常，按真实（在看为空）结果处理并写缓存。
+  await sleep(800);
+  const want = await fetchBangumi(1);
+  await sleep(800);
+  const watched = await fetchBangumi(2);
+  if (want.length > 0 || watched.length > 0) {
+    const result: BangumiCache = { watching, want, watched, updatedAt: new Date().toISOString() };
+    writeCache(result);
+    return result;
+  }
+
+  // 全部为空：接口不可用，回退缓存（秒开）
+  if (cached && (cached.watching?.length || cached.want?.length || cached.watched?.length)) {
     return {
       watching: cached.watching ?? [],
       want: cached.want ?? [],
       watched: cached.watched ?? [],
+      updatedAt: cached.updatedAt,
     };
   }
-  return { watching: [], want: [], watched: [] };
+  return { watching: [], want: [], watched: [], updatedAt: undefined };
 }
 
-let { watching, want, watched } = await loadBangumi();
+let { watching, want, watched, updatedAt } = await loadBangumi();
 
 const groups = [
   { key: 'watching', label: '在看', en: 'WATCHING', list: watching },
@@ -113,7 +161,7 @@ const total = watching.length + want.length + watched.length;
             g.list.length > 0 ? (
               <section class="bangumi-group">
                 <div class="section-head">
-                  <p class="micro-label">{g.en} // {g.label}</p>
+                  <p class="micro-label">{g.en} // {g.label} // {g.list.length} 部</p>
                   <h2 class="title display-title">{g.label}</h2>
                   <div class="rule" aria-hidden="true"></div>
                 </div>
@@ -139,6 +187,9 @@ const total = watching.length + want.length + watched.length;
 
       <p class="bangumi-note">
         数据来自我的 B 站追番列表（UID {VMID}），构建站点时自动同步；点击卡片前往 B 站观看。
+        {updatedAt && (
+          <span class="bangumi-sync-time">// 最近同步 {formatDateTime(new Date(updatedAt))}</span>
+        )}
       </p>
     </div>
   </section>

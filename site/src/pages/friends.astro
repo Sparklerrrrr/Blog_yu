@@ -1,33 +1,27 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { SITE } from '../lib/site';
+import { FRIEND_GROUPS, friends, type FriendGroupId } from '../data/friends';
 
-interface Friend {
-  name: string;
-  url: string;
-  desc: string;
-  icon: string;
-  tags: string[];
-}
+const groupIds = Object.keys(FRIEND_GROUPS) as FriendGroupId[];
+const groupsWithFriends = groupIds.filter((g) => friends.some((f) => f.group === g));
+const allTags = ['全部', ...new Set(friends.flatMap((f) => f.tags))];
 
-const friends: Friend[] = [
-  {
-    name: '清风博客',
-    url: 'https://blog.myqfeng.top/',
-    desc: '爱整活，爱生活——本站导航布局与音乐播放器的设计参考',
-    icon: 'https://blog.myqfeng.top/assets/images/icon.png',
-    tags: ['Blog', '设计'],
-  },
-  {
-    name: '070219.xyz',
-    url: 'https://070219.xyz/',
-    desc: '明月清风的小屋——本站选中高亮与浅色配色的参考',
-    icon: 'https://070219.xyz/favicon.svg',
-    tags: ['Blog', '设计'],
-  },
+/** 申请区左侧「本站信息」：每项带复制按钮（参考 blog.myqfeng.top/friends/） */
+const siteFields = [
+  { label: '站点名称', value: `${SITE.zh}（${SITE.en}）` },
+  { label: '站点描述', value: SITE.description },
+  { label: '站点链接', value: SITE.url },
+  { label: '头像链接', value: `${SITE.url}/favicon.png` },
 ];
 
-const allTags = ['全部', ...new Set(friends.flatMap((f) => f.tags))];
+/** 申请模板（申请者复制后填写自己的信息） */
+const applyTemplate = [
+  '站点名称：您的站点名称',
+  '站点描述：您的站点描述',
+  '站点链接：您的站点链接',
+  '头像链接：您的站点头像',
+].join('\n');
 ---
 
 <BaseLayout title="友链">
@@ -35,94 +29,198 @@ const allTags = ['全部', ...new Set(friends.flatMap((f) => f.tags))];
     <div class="panel reveal-x">
       <header class="page-head">
         <p class="micro-label">FRIENDS // 友链</p>
-        <h1 class="display-title">友链</h1>
-        <p class="micro-label" style="margin-top: var(--sp-3);">这里是我的朋友们，欢迎互相访问交流 // {friends.length} 位</p>
+        <h1 class="display-title title-with-icon">
+          <span class="title-icon-box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 20v-2.8q0-.85.438-1.562T2.6 14.55q1.55-.775 3.15-1.162T9 13t3.25.388t3.15 1.162q.725.375 1.163 1.088T17 17.2V20zm18 0v-3q0-1.1-.612-2.113T16.65 13.15q1.275.15 2.4.513t2.1.887q.9.5 1.375 1.112T23 17v3zM6.175 10.825Q5 9.65 5 8t1.175-2.825T9 4t2.825 1.175T13 8t-1.175 2.825T9 12t-2.825-1.175m11.65 0Q16.65 12 15 12q-.275 0-.7-.062t-.7-.138q.675-.8 1.038-1.775T15 8t-.362-2.025T13.6 4.2q.35-.125.7-.163T15 4q1.65 0 2.825 1.175T19 8t-1.175 2.825"/></svg>
+          </span>
+          友链
+        </h1>
+        <p class="micro-label" style="margin-top: var(--sp-3);">
+          这里是我的朋友们，欢迎互相访问交流 // {friends.length} 位
+        </p>
       </header>
 
-      <!-- 筛选：搜索 + 分类 -->
+      <!-- 工具行：搜索 + 标签筛选 + 随机排序 + 在线检测 -->
       <div class="friend-filter">
         <div class="friend-search">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m19.6 21-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3z"/></svg>
           <input type="text" id="friends-search" placeholder="搜索友链…" autocomplete="off" />
         </div>
-        <div class="friend-pills">
-          {
-            allTags.map((tag) => (
-              <button type="button" class="category-pill" data-tag={tag} data-active={tag === '全部' ? '' : undefined}>{tag}</button>
-            ))
-          }
+        <div class="friend-tools">
+          <div class="friend-pills">
+            {
+              allTags.map((tag) => (
+                <button type="button" class="category-pill" data-tag={tag} data-active={tag === '全部' ? '' : undefined}>{tag}</button>
+              ))
+            }
+          </div>
+          <div class="friend-actions">
+            <button type="button" class="friend-action" id="friend-shuffle" title="随机打乱友链顺序">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 8h2.8l2.2 2.7L6.8 13.5H4"/><path d="M20 8h-2.8l-5 6.1L14.6 17H20"/><path d="m16 6 2 2-2 2M16 15l2 2-2 2"/></svg>
+              随机排序
+            </button>
+            <button type="button" class="friend-action" id="friend-check" title="检测友链站点网络可达性（仅供参考）">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8.5 13.5a4.2 4.2 0 0 1 7 0"/><path d="M5.5 10.5a8.6 8.6 0 0 1 13 0"/><path d="M2.8 8a12.6 12.6 0 0 1 18.4 0"/><circle cx="12" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>
+              检测在线
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- 友链卡片 -->
-      <div class="friends-grid" id="friends-grid">
-        {
-          friends.map((f, i) => (
-            <a
-              class="friend-card reveal"
-              href={f.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-tags={f.tags.join(' ')}
-              data-hay={[f.name, f.desc, f.tags.join(' ')].join(' ')}
-              style={`--reveal-delay:${i * 60}ms`}
-            >
-              <div class="friend-avatar">
-                <img src={f.icon} alt={`${f.name} 图标`} loading="lazy" onerror="this.style.display='none'" />
-                <span class="friend-letter" aria-hidden="true">{f.name.slice(0, 1)}</span>
+      <!-- 友链分组 -->
+      {
+        groupsWithFriends.map((gid, gi) => {
+          const list = friends.filter((f) => f.group === gid);
+          const isLast = gi === groupsWithFriends.length - 1;
+          return (
+            <section class="friend-group" data-group={gid}>
+              <h2 class="friend-group-head">
+                <span class="friend-group-zh">{FRIEND_GROUPS[gid].zh}</span>
+                <span class="friend-group-en">{FRIEND_GROUPS[gid].en} // {list.length}</span>
+              </h2>
+              <div class="friends-grid">
+                {list.map((f, i) => (
+                  <a
+                    class="friend-card reveal"
+                    href={f.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-tags={f.tags.join(' ')}
+                    data-hay={[f.name, f.desc, f.tags.join(' ')].join(' ')}
+                    data-check={f.url}
+                    style={`--reveal-delay:${i * 60}ms`}
+                  >
+                    <div class="friend-avatar">
+                      <img src={f.icon} alt={`${f.name} 图标`} loading="lazy" onerror="this.style.display='none'" />
+                      <span class="friend-letter" aria-hidden="true">{f.name.slice(0, 1)}</span>
+                    </div>
+                    <div class="friend-info">
+                      <div class="friend-top">
+                        <span class="friend-name">{f.name}</span>
+                        <svg class="friend-arrow" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m16 8.4-8.9 8.9q-.275.275-.7.275t-.7-.275t-.275-.7t.275-.7L14.6 7H7q-.425 0-.712-.288T6 6t.288-.712T7 5h10q.425 0 .713.288T18 6v10q0 .425-.288.713T17 17t-.712-.288T16 16z"/></svg>
+                      </div>
+                      <span class="friend-desc" title={f.desc}>{f.desc}</span>
+                      <div class="friend-tags">
+                        {f.tags.map((tag) => <span class="friend-tag">{tag}</span>)}
+                      </div>
+                    </div>
+                    <span class="friend-status" data-status="idle" aria-hidden="true"></span>
+                  </a>
+                ))}
+                {isLast && (
+                  <a class="friend-slot reveal" href="#friend-apply" title="点击查看申请友链方式">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    <span class="friend-slot-title">申请友链</span>
+                    <span class="friend-slot-hint">你的站点可能出现在这里</span>
+                  </a>
+                )}
               </div>
-              <div class="friend-info">
-                <div class="friend-top">
-                  <span class="friend-name">{f.name}</span>
-                  <svg class="friend-arrow" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m16 8.4-8.9 8.9q-.275.275-.7.275t-.7-.275t-.275-.7t.275-.7L14.6 7H7q-.425 0-.712-.288T6 6t.288-.712T7 5h10q.425 0 .713.288T18 6v10q0 .425-.288.713T17 17t-.712-.288T16 16z"/></svg>
-                </div>
-                <span class="friend-desc" title={f.desc}>{f.desc}</span>
-                <div class="friend-tags">
-                  {f.tags.map((tag) => <span class="friend-tag">{tag}</span>)}
-                </div>
-              </div>
-            </a>
-          ))
-        }
-      </div>
+            </section>
+          );
+        })
+      }
 
-      <!-- 申请友链说明 -->
-      <div class="friend-apply">
-        <h3 class="friend-apply-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" /></svg>
-          申请友链
-        </h3>
-        <div class="friend-apply-steps">
-          <div class="apply-step">
-            <span class="apply-num">1</span>
-            <div>
-              <p class="apply-title">添加本站友链</p>
-              <p class="apply-desc">请先在您的网站友链页面添加本站信息，字段见下方</p>
+      <p class="friend-empty" id="friend-empty" hidden>没有匹配的友链</p>
+      <p class="friend-check-note" id="friend-check-note" hidden>检测结果仅供参考：仅测试从你浏览器发出的网络请求能否到达对方站点，不代表对方服务正常。</p>
+
+      <!-- 申请友链：左本站信息（可复制）/ 右申请指引 / 下注意事项（参考 blog.myqfeng.top/friends/） -->
+      <div class="friend-apply" id="friend-apply">
+        <div class="friend-apply-grid">
+          <!-- 左：本站信息 -->
+          <div class="friend-apply-card">
+            <h3 class="friend-apply-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5" /><path d="M12 7.6v.2" /></svg>
+              本站信息
+            </h3>
+            <div class="friend-info-list">
+              {siteFields.map((f) => (
+                <div class="friend-info-row">
+                  <div class="friend-info-main">
+                    <p class="friend-info-label">{f.label}</p>
+                    <p class="friend-info-value" title={f.value}>{f.value}</p>
+                  </div>
+                  <button
+                    type="button"
+                    class="friend-copy-btn"
+                    data-copy={f.value}
+                    title={`复制${f.label}`}
+                    aria-label={`复制${f.label}`}
+                  >
+                    <svg class="copy-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2m-6 12h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/></svg>
+                    <svg class="copy-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
-          <div class="apply-step">
-            <span class="apply-num">2</span>
-            <div>
-              <p class="apply-title">提交申请</p>
-              <p class="apply-desc">在 <a href="https://gitee.com/yu_sparklerrr/blog_yu/issues" target="_blank" rel="noopener">Gitee 仓库 Issues</a> 提交友链申请，附上你的站点信息</p>
-            </div>
-          </div>
-          <div class="apply-step">
-            <span class="apply-num">3</span>
-            <div>
-              <p class="apply-title">等待通过</p>
-              <p class="apply-desc">我会在看到申请后尽快添加并回复</p>
+
+          <!-- 右：申请指引 -->
+          <div class="friend-apply-card">
+            <h3 class="friend-apply-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" /></svg>
+              申请友链
+            </h3>
+            <div class="friend-apply-steps">
+              <div class="apply-step">
+                <div class="apply-rail">
+                  <span class="apply-num">1</span>
+                  <span class="apply-line" aria-hidden="true"></span>
+                </div>
+                <div class="apply-body">
+                  <p class="apply-title">添加本站友链</p>
+                  <p class="apply-desc">请先在您的网站友链页面添加本站信息，可直接复制左侧各字段</p>
+                </div>
+              </div>
+              <div class="apply-step">
+                <div class="apply-rail">
+                  <span class="apply-num">2</span>
+                  <span class="apply-line" aria-hidden="true"></span>
+                </div>
+                <div class="apply-body">
+                  <p class="apply-title">
+                    <a href="/guestbook/">评论区留言</a> / 发送申请邮件至：<code class="apply-mail">{SITE.email}</code>
+                  </p>
+                  <p class="apply-desc">申请模板，把内容复制修改后到评论区或邮件中发送</p>
+                  <div class="apply-template">
+                    <button
+                      type="button"
+                      class="friend-copy-btn apply-template-copy"
+                      data-copy={applyTemplate}
+                      title="复制申请模板"
+                      aria-label="复制申请模板"
+                    >
+                      <svg class="copy-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2m-6 12h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/></svg>
+                      <svg class="copy-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>
+                    </button>
+                    <pre class="apply-template-pre">{applyTemplate}</pre>
+                  </div>
+                </div>
+              </div>
+              <div class="apply-step">
+                <div class="apply-rail">
+                  <span class="apply-num">3</span>
+                </div>
+                <div class="apply-body">
+                  <p class="apply-title">等待审核</p>
+                  <p class="apply-desc">确认信息无误后会尽快添加您的友链</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="friend-site-info">
-          <p class="micro-label">SITE INFO // 本站信息</p>
-          <div class="friend-site-grid">
-            <div><span class="info-key">名称</span><span class="info-val">{SITE.zh}（{SITE.en}）</span></div>
-            <div><span class="info-key">链接</span><span class="info-val">https://gitee.com/yu_sparklerrr/blog_yu</span></div>
-            <div><span class="info-key">简介</span><span class="info-val">{SITE.description}</span></div>
-            <div><span class="info-key">头像</span><span class="info-val">/favicon.png</span></div>
-          </div>
+
+        <!-- 下方：注意事项 -->
+        <div class="friend-apply-card friend-notes">
+          <h3 class="friend-apply-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /></svg>
+            注意事项
+          </h3>
+          <ul class="friend-notes-list">
+            <li><strong>互换原则</strong>：请先将本站添加到您的友链页面，确认后会添加您的友链</li>
+            <li><strong>链接维护</strong>：友链网站长期无法访问或内容违规，将会被移除</li>
+            <li><strong>内容要求</strong>：内容积极向上，不含有任何含色情/反动/暴力等违法违规内容</li>
+            <li><strong>站点要求</strong>：支持 HTTPS，以原创内容为主，能够正常访问且有持续更新</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -130,21 +228,60 @@ const allTags = ['全部', ...new Set(friends.flatMap((f) => f.tags))];
 </BaseLayout>
 
 <script>
-  // 友链筛选（事件委托：搜索 + 分类标签）
-  document.addEventListener('input', (e) => {
+  // ===== 友链筛选：搜索 + 标签（事件委托，适配分组结构） =====
+  function handleFriendInput(e: Event) {
     const input = e.target as HTMLInputElement | null;
     if (!input || input.id !== 'friends-search') return;
     applyFriendFilter();
-  });
-  document.addEventListener('click', (e) => {
-    const pill = (e.target as HTMLElement).closest('.category-pill');
-    if (!pill || !pill.classList.contains('category-pill')) return;
-    document.querySelectorAll('.category-pill').forEach((p) => {
-      if (p === pill) p.setAttribute('data-active', '');
-      else p.removeAttribute('data-active');
-    });
-    applyFriendFilter();
-  });
+  }
+  function handleFriendClick(e: Event) {
+    const t = e.target as HTMLElement;
+
+    // 复制按钮（本站信息字段 / 申请模板）
+    const copyBtn = t.closest('.friend-copy-btn');
+    if (copyBtn) {
+      const text = (copyBtn as HTMLElement).dataset.copy ?? '';
+      if (text) void copyText(text, copyBtn as HTMLElement);
+      return;
+    }
+
+    const pill = t.closest('.category-pill');
+    if (pill) {
+      document.querySelectorAll('.category-pill').forEach((p) => {
+        if (p === pill) p.setAttribute('data-active', '');
+        else p.removeAttribute('data-active');
+      });
+      applyFriendFilter();
+      return;
+    }
+
+    if (t.closest('#friend-shuffle')) {
+      shuffleGroups();
+      return;
+    }
+
+    if (t.closest('#friend-check')) {
+      void runChecks();
+    }
+  }
+
+  /** 复制到剪贴板：优先 Clipboard API，失败降级 execCommand */
+  async function copyText(text: string, btn: HTMLElement) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    btn.classList.add('is-copied');
+    window.setTimeout(() => btn.classList.remove('is-copied'), 1500);
+  }
 
   function applyFriendFilter() {
     const kw = ((document.getElementById('friends-search') as HTMLInputElement | null)?.value ?? '')
@@ -152,12 +289,84 @@ const allTags = ['全部', ...new Set(friends.flatMap((f) => f.tags))];
       .toLowerCase();
     const activePill = document.querySelector('.category-pill[data-active]') as HTMLElement | null;
     const tag = activePill?.dataset.tag ?? '全部';
-    document.querySelectorAll<HTMLElement>('#friends-grid .friend-card').forEach((card) => {
-      const tags = (card.dataset.tags ?? '').toLowerCase();
-      const hay = (card.dataset.hay ?? '').toLowerCase();
-      const hitTag = tag === '全部' || tags.includes(tag.toLowerCase());
-      const hitKw = !kw || hay.includes(kw);
-      card.style.display = hitTag && hitKw ? '' : 'none';
+    let shown = 0;
+    document.querySelectorAll<HTMLElement>('.friend-group').forEach((group) => {
+      let groupShown = 0;
+      group.querySelectorAll<HTMLElement>('.friend-card').forEach((card) => {
+        const tags = (card.dataset.tags ?? '').toLowerCase();
+        const hay = (card.dataset.hay ?? '').toLowerCase();
+        const hitTag = tag === '全部' || tags.includes(tag.toLowerCase());
+        const hitKw = !kw || hay.includes(kw);
+        const show = hitTag && hitKw;
+        card.style.display = show ? '' : 'none';
+        if (show) groupShown += 1;
+      });
+      group.style.display = groupShown > 0 ? '' : 'none';
+      shown += groupShown;
     });
+    const slot = document.querySelector<HTMLElement>('.friend-slot');
+    if (slot) slot.style.display = kw ? 'none' : ''; // 搜索时隐藏申请位卡片
+    const empty = document.getElementById('friend-empty');
+    if (empty) empty.hidden = shown > 0;
+  }
+
+  // ===== 随机排序：打乱每个分组内的友链（申请位卡片始终在末尾） =====
+  function shuffleGroups() {
+    document.querySelectorAll<HTMLElement>('.friend-group .friends-grid').forEach((grid) => {
+      const cards = Array.from(grid.querySelectorAll<HTMLElement>('.friend-card'));
+      for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+      }
+      cards.forEach((c) => grid.appendChild(c));
+    });
+  }
+
+  // ===== 在线检测：no-cors 请求 + 超时，仅判断网络层可达性 =====
+  async function runChecks() {
+    const btn = document.getElementById('friend-check') as HTMLButtonElement | null;
+    const note = document.getElementById('friend-check-note');
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('is-running');
+    }
+    if (note) note.hidden = false;
+    const cards = Array.from(document.querySelectorAll<HTMLElement>('.friend-card'));
+    await Promise.all(cards.map(checkCard));
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('is-running');
+    }
+  }
+
+  async function checkCard(card: HTMLElement) {
+    const status = card.querySelector<HTMLElement>('.friend-status');
+    const url = card.dataset.check ?? '';
+    status?.setAttribute('data-status', 'checking');
+    let result = 'skip';
+    if (/^https:/i.test(url)) {
+      const ctrl = new AbortController();
+      const timer = window.setTimeout(() => ctrl.abort(), 8000);
+      try {
+        await fetch(url, { mode: 'no-cors', signal: ctrl.signal });
+        result = 'ok';
+      } catch {
+        result = 'dead';
+      } finally {
+        window.clearTimeout(timer);
+      }
+    }
+    status?.setAttribute('data-status', result);
+    status?.setAttribute(
+      'title',
+      result === 'ok' ? '可达' : result === 'dead' ? '无法连接' : '已跳过（非 https）'
+    );
+  }
+
+  // ClientRouter 页面切换后脚本会重新执行：只绑定一次监听器，函数操作当前 DOM
+  if (!(window as any).__friendsBound) {
+    (window as any).__friendsBound = true;
+    document.addEventListener('input', handleFriendInput);
+    document.addEventListener('click', handleFriendClick);
   }
 </script>

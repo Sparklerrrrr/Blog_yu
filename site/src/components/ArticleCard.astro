@@ -1,6 +1,6 @@
 ---
 import type { CollectionEntry } from 'astro:content';
-import { CATEGORIES, formatDate } from '../lib/site';
+import { CATEGORIES, formatDate, readingTime } from '../lib/site';
 import Tag from './Tag.astro';
 
 interface Props {
@@ -10,14 +10,19 @@ interface Props {
 
 const { post, delay = 0 } = Astro.props;
 const cat = CATEGORIES[post.data.category];
+const mins = readingTime(post.body);
 ---
 
 <article class="card article-card reveal" data-category={post.data.category} data-tilt style={`--reveal-delay:${delay}ms`}>
   <a class="card-link" href={`/posts/${post.id}/`}>
     <p class="micro-label">
       {cat.en} <span class="num">// {formatDate(post.data.date)}</span>
+      <span class="num">// {mins} MIN</span>
     </p>
-    <h2 class="title">{post.data.title}</h2>
+    <h2 class="title">
+      {post.data.pin && <span class="pin-chip">置顶</span>}
+      {post.data.title}
+    </h2>
     {post.data.description && <p class="desc">{post.data.description}</p>}
   </a>
   {

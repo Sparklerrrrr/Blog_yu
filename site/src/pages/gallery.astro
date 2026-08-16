@@ -50,10 +50,23 @@ const images: Wallpaper[] = [
 </BaseLayout>
 
 <script>
-  // 灯箱：点击缩略图全屏查看，支持左右切换/关闭（事件委托，动态创建遮罩）
+  // 灯箱：点击缩略图全屏查看，支持左右切换/关闭/滑动（事件委托，动态创建遮罩）
   const items = () =>
     Array.from(document.querySelectorAll<HTMLElement>('#gallery-grid .gallery-item'));
   let current = 0;
+
+  const lockScroll = (on: boolean) => { document.documentElement.style.overflow = on ? 'hidden' : ''; };
+
+  // 预载相邻两张，切换零等待
+  const preloadAt = (i: number) => {
+    const list = items();
+    if (list.length === 0) return;
+    const src = list[(i + list.length) % list.length]?.dataset.src;
+    if (src) {
+      const im = new Image();
+      im.src = src;
+    }
+  };
 
   const openLightbox = (index: number) => {
     closeLightbox();
@@ -65,19 +78,40 @@ const images: Wallpaper[] = [
     const box = document.createElement('div');
     box.className = 'lightbox';
     box.id = 'lightbox';
-    box.innerHTML = `
-      <button class="lightbox-close" aria-label="关闭">✕</button>
-      <button class="lightbox-nav lightbox-prev" aria-label="上一张">‹</button>
-      <figure class="lightbox-fig">
-        <img src="${item.dataset.src}" alt="${item.dataset.title}" />
-        <figcaption><span class="lightbox-count">${current + 1} / ${list.length}</span> ${item.dataset.title}</figcaption>
-      </figure>
-      <button class="lightbox-nav lightbox-next" aria-label="下一张">›</button>`;
+    box.innerHTML =
+      '<button class="lightbox-close" aria-label="关闭">✕</button>' +
+      '<button class="lightbox-nav lightbox-prev" aria-label="上一张">‹</button>' +
+      '<figure class="lightbox-fig">' +
+      '<img src="' + (item.dataset.src ?? '') + '" alt="' + (item.dataset.title ?? '') + '" draggable="false" />' +
+      '<figcaption><span class="lightbox-count">' + (current + 1) + ' / ' + list.length + '</span> ' + (item.dataset.title ?? '') + '</figcaption>' +
+      '</figure>' +
+      '<button class="lightbox-nav lightbox-next" aria-label="下一张">›</button>';
     document.body.appendChild(box);
+    lockScroll(true);
+    preloadAt(current + 1);
+    preloadAt(current - 1);
+
+    // 触摸滑动切换（pointer 事件，横向位移超过阈值即翻页）
+    let startX = 0;
+    let startY = 0;
+    box.addEventListener('pointerdown', (e) => {
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+    box.addEventListener('pointerup', (e) => {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy)) return;
+      showAt(current + (dx < 0 ? 1 : -1));
+    });
   };
 
   const closeLightbox = () => {
-    document.getElementById('lightbox')?.remove();
+    const box = document.getElementById('lightbox');
+    if (box) {
+      box.remove();
+      lockScroll(false);
+    }
   };
 
   const showAt = (i: number) => {
@@ -88,10 +122,18 @@ const images: Wallpaper[] = [
     const img = document.querySelector('#lightbox .lightbox-fig img') as HTMLImageElement | null;
     const cap = document.querySelector('#lightbox figcaption');
     const count = document.querySelector('#lightbox .lightbox-count');
-    if (img) img.src = item.dataset.src ?? '';
-    if (img) img.alt = item.dataset.title ?? '';
-    if (cap) cap.lastChild!.textContent = ' ' + (item.dataset.title ?? '');
-    if (count) count.textContent = `${current + 1} / ${list.length}`;
+    if (img && item) {
+      img.src = item.dataset.src ?? '';
+      img.alt = item.dataset.title ?? '';
+      // 切换淡入动画
+      img.classList.remove('is-swap');
+      void img.offsetWidth;
+      img.classList.add('is-swap');
+    }
+    if (cap) cap.lastChild!.textContent = ' ' + (item?.dataset.title ?? '');
+    if (count) count.textContent = current + 1 + ' / ' + list.length;
+    preloadAt(current + 1);
+    preloadAt(current - 1);
   };
 
   document.addEventListener('click', (e) => {

@@ -20,40 +20,134 @@ export async function getStaticPaths() {
 }
 
 const { post } = Astro.props;
-const { Content } = await render(post);
+const { Content, headings } = await render(post);
 const cat = CATEGORIES[post.data.category];
 const mins = readingTime(post.body);
+
+// 目录：正文里的 h2 / h3
+const toc = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+
+// 上一篇（较新）/ 下一篇（较旧）
+const posts = await getPosts();
+const idx = posts.findIndex((p) => p.id === post.id);
+const newer = idx > 0 ? posts[idx - 1] : undefined;
+const older = idx >= 0 && idx < posts.length - 1 ? posts[idx + 1] : undefined;
+
+// 相关文章：按共同标签数排序，最多 3 篇
+const related = posts
+  .filter((p) => p.id !== post.id)
+  .map((p) => ({ p, shared: p.data.tags.filter((t) => post.data.tags.includes(t)).length }))
+  .filter((x) => x.shared > 0)
+  .sort((a, b) => b.shared - a.shared || b.p.data.date.valueOf() - a.p.data.date.valueOf())
+  .slice(0, 3)
+  .map((x) => x.p);
+
+// 最后更新：仅当 updated 晚于 date 时展示
+const updated =
+  post.data.updated && post.data.updated.valueOf() > post.data.date.valueOf()
+    ? post.data.updated
+    : undefined;
 ---
 
-<BaseLayout title={post.data.title} description={post.data.description}>
-  <div class="container-narrow" style="padding-block: var(--sp-9);">
+<BaseLayout
+  title={post.data.title}
+  description={post.data.description}
+  ogType="article"
+  publishedTime={post.data.date}
+  modifiedTime={updated}
+>
+  <div class="container-post" style="padding-block: var(--sp-9);">
     <article class="panel reveal-x" data-category={post.data.category}>
       <header class="post-head reveal">
-      <p class="micro-label">
-        <a href={`/posts/?cat=${post.data.category}`}>
-          {cat.zh} {cat.en}
-        </a>
-      </p>
-      <h1 class="display-title">{post.data.title}</h1>
-      <p class="post-meta">
-        <time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time>
-        <span>// {mins} MIN READ</span>
-        <span>// BY {SITE.author.toUpperCase()}</span>
-      </p>
-    </header>
+        <p class="micro-label">
+          <a href={`/posts/?cat=${post.data.category}`}>{cat.zh} {cat.en}</a>
+          {post.data.pin && <span class="pin-chip">置顶 PINNED</span>}
+        </p>
+        <h1 class="display-title">{post.data.title}</h1>
+        <p class="post-meta">
+          <time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time>
+          {updated && <span>// UPDATED {formatDate(updated)}</span>}
+          <span>// {mins} MIN READ</span>
+          <span>// BY {SITE.author.toUpperCase()}</span>
+        </p>
+      </header>
 
-    <div class="prose">
-      <Content />
-    </div>
+      {toc.length > 0 && (
+        <details class="toc-inline">
+          <summary>目录 CONTENTS</summary>
+          <ol class="toc-list">
+            {toc.map((h) => (
+              <li class={`toc-item toc-depth-${h.depth}`}>
+                <a href={`#${h.slug}`} data-toc-link>{h.text}</a>
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
 
-    <footer class="post-foot">
-      <div class="tags">
-        {post.data.tags.map((t) => (
-          <Tag text={t} />
-        ))}
+      <div class="post-body">
+        <div class="prose">
+          <Content />
+        </div>
+        {toc.length > 0 && (
+          <aside class="toc-side" aria-label="文章目录">
+            <nav class="toc-card">
+              <p class="micro-label">CONTENTS // 目录</p>
+              <ol class="toc-list">
+                {toc.map((h) => (
+                  <li class={`toc-item toc-depth-${h.depth}`}>
+                    <a href={`#${h.slug}`} data-toc-link>{h.text}</a>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          </aside>
+        )}
       </div>
-      <a class="back" href="/posts/">← 返回归档</a>
+
+      <footer class="post-foot">
+        <div class="tags">
+          {post.data.tags.map((t) => (
+            <Tag text={t} />
+          ))}
+        </div>
+        <a class="back" href="/posts/">← 返回归档</a>
       </footer>
+
+      <nav class="post-pager" aria-label="文章导航">
+        {newer ? (
+          <a class="pager-card pager-prev" href={`/posts/${newer.id}/`}>
+            <span class="pager-label">← NEWER // 较新一篇</span>
+            <span class="pager-title">{newer.data.title}</span>
+          </a>
+        ) : (
+          <span class="pager-card pager-spacer" aria-hidden="true"></span>
+        )}
+        {older ? (
+          <a class="pager-card pager-next" href={`/posts/${older.id}/`}>
+            <span class="pager-label">OLDER // 较旧一篇 →</span>
+            <span class="pager-title">{older.data.title}</span>
+          </a>
+        ) : (
+          <span class="pager-card pager-spacer" aria-hidden="true"></span>
+        )}
+      </nav>
+
+      {related.length > 0 && (
+        <aside class="related reveal">
+          <p class="micro-label">RELATED // 相关文章</p>
+          <ul class="related-list">
+            {related.map((p) => (
+              <li class="related-item">
+                <a href={`/posts/${p.id}/`}>
+                  <span class="related-title">{p.data.title}</span>
+                  <span class="related-meta">{formatDate(p.data.date)} · {CATEGORIES[p.data.category].en}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )}
     </article>
 
     <Comments pageKey={`/posts/${post.id}/`} pageTitle={post.data.title} />
@@ -61,3 +155,55 @@ const mins = readingTime(post.body);
 
   <ProgressRing />
 </BaseLayout>
+
+<script>
+  // 目录滚动高亮：IntersectionObserver 标记当前阅读位置
+  const tocLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]'));
+  if (tocLinks.length) {
+    const heads = tocLinks
+      .map((a) => document.getElementById(decodeURIComponent(a.hash.slice(1))))
+      .filter((el): el is HTMLElement => Boolean(el));
+    const setActive = (id: string) => {
+      tocLinks.forEach((a) => {
+        const on = a.hash === '#' + id;
+        a.classList.toggle('is-active', on);
+        if (on) a.setAttribute('aria-current', 'true');
+        else a.removeAttribute('aria-current');
+      });
+    };
+    const spy = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length) {
+          visible.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+          setActive(visible[0].target.id);
+        }
+      },
+      { rootMargin: '-96px 0px -60% 0px' },
+    );
+    heads.forEach((h) => spy.observe(h));
+    // 移动端目录：点链接后收起
+    const inline = document.querySelector<HTMLDetailsElement>('.toc-inline');
+    tocLinks.forEach((a) => a.addEventListener('click', () => inline?.removeAttribute('open')));
+  }
+
+  // 标题锚点：为正文 h2/h3 追加 # 链接（悬停显示，点击更新地址栏 hash）
+  document.querySelectorAll('.prose h2[id], .prose h3[id]').forEach((el) => {
+    const h = el as HTMLElement;
+    if (h.querySelector('.anchor-link')) return;
+    const a = document.createElement('a');
+    a.className = 'anchor-link';
+    a.href = '#' + h.id;
+    a.textContent = '#';
+    a.title = '复制标题链接';
+    a.setAttribute('aria-label', '复制标题链接');
+    a.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      const url = new URL(location.href);
+      url.hash = h.id;
+      history.replaceState(null, '', url);
+      h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    h.appendChild(a);
+  });
+</script>

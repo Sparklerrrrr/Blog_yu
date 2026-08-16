@@ -1,0 +1,121 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE } from '../lib/site';
+
+/** 社交账号卡：想加平台就在这里加一行 */
+const socials = [
+  {
+    name: 'GitHub',
+    handle: 'Sparklerrrrr',
+    url: 'https://github.com/Sparklerrrrr',
+    desc: '代码仓库与开源项目',
+    icon: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>',
+  },
+  {
+    name: 'Gitee',
+    handle: 'yu_sparklerrr',
+    url: 'https://gitee.com/yu_sparklerrr',
+    desc: '本站源码托管，国内访问更快',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="6" cy="5" r="2.6" /><circle cx="18" cy="5" r="2.6" /><circle cx="6" cy="19" r="2.6" /><path d="M6 7.6v8.8M18 7.6a7 7 0 0 0-8 12" /></svg>',
+  },
+  {
+    name: 'Bilibili',
+    handle: 'UID 421381039',
+    url: 'https://space.bilibili.com/421381039',
+    desc: '偶尔发点视频，欢迎关注',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="8" width="17" height="11" rx="1.5" /><path d="M8 8l4-3.5L16 8" /><path d="M9 12.5v3M12 11v6M15.5 12.5v3" /></svg>',
+  },
+];
+---
+
+<BaseLayout title="联系">
+  <section class="container">
+    <div class="panel reveal-x">
+      <header class="page-head">
+        <p class="micro-label">CONTACT // 联系</p>
+        <h1 class="display-title">联系</h1>
+        <p class="contact-lead">在这些地方可以找到我；有话说也可以去留言板，重要的事发邮件。</p>
+      </header>
+
+      <!-- 社交账号卡 -->
+      <div class="contact-grid">
+        {
+          socials.map((s, i) => (
+            <a
+              class="contact-card reveal"
+              data-tilt
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={`--reveal-delay:${i * 60}ms`}
+            >
+              <span class="contact-icon" set:html={s.icon} />
+              <span class="contact-meta">
+                <span class="contact-name">{s.name}</span>
+                <span class="contact-handle">{s.handle}</span>
+                <span class="contact-desc">{s.desc}</span>
+              </span>
+              <svg class="contact-arrow" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m16 8.4-8.9 8.9q-.275.275-.7.275t-.7-.275t-.275-.7t.275-.7L14.6 7H7q-.425 0-.712-.288T6 6t.288-.712T7 5h10q.425 0 .713.288T18 6v10q0 .425-.288.713T17 17t-.712-.288T16 16z"/></svg>
+            </a>
+          ))
+        }
+      </div>
+
+      <!-- 邮箱 + RSS -->
+      <div class="contact-grid contact-grid-2">
+        <div class="contact-card contact-static reveal" data-tilt>
+          <span class="contact-icon" set:html={'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1.5" /><path d="m3.5 7 8.5 6 8.5-6" /></svg>'} />
+          <span class="contact-meta">
+            <span class="contact-name">邮箱</span>
+            <span class="contact-handle" id="contact-email">{SITE.email}</span>
+            <span class="contact-desc">重要的事发邮件；一般问题去留言板更快</span>
+          </span>
+          <button type="button" class="contact-copy" id="contact-copy" title="复制邮箱地址">复制</button>
+        </div>
+
+        <a class="contact-card reveal" data-tilt href="/rss.xml" title="在 RSS 阅读器中订阅本站">
+          <span class="contact-icon" set:html={'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4a16 16 0 0 1 16 16h-3.2A12.8 12.8 0 0 0 4 7.2V4zm0 6.4A9.6 9.6 0 0 1 13.6 20h-3.2A6.4 6.4 0 0 0 4 13.6v-3.2zM5.6 20a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2z"/></svg>'} />
+          <span class="contact-meta">
+            <span class="contact-name">RSS 订阅</span>
+            <span class="contact-handle">/rss.xml</span>
+            <span class="contact-desc">订阅最新文章，把本站装进你的阅读器</span>
+          </span>
+          <svg class="contact-arrow" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m16 8.4-8.9 8.9q-.275.275-.7.275t-.7-.275t-.275-.7t.275-.7L14.6 7H7q-.425 0-.712-.288T6 6t.288-.712T7 5h10q.425 0 .713.288T18 6v10q0 .425-.288.713T17 17t-.712-.288T16 16z"/></svg>
+        </a>
+      </div>
+
+      <!-- 快捷入口 -->
+      <p class="contact-more">
+        <a class="tag" href="/friends/">友链 FRIENDS →</a>
+        <a class="tag" href="/guestbook/">留言板 GUESTBOOK →</a>
+        <a class="tag" href="/about/">关于我 ABOUT →</a>
+      </p>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  // 邮箱复制（DOM 随页面切换重建，监听器绑在新元素上，不会重复）
+  document.getElementById('contact-copy')?.addEventListener('click', async function () {
+    const btn = this as HTMLButtonElement;
+    const email = document.getElementById('contact-email')?.textContent?.trim() ?? '';
+    if (!email) return;
+    try {
+      await navigator.clipboard.writeText(email);
+    } catch {
+      // 剪贴板 API 不可用时的降级方案
+      const ta = document.createElement('textarea');
+      ta.value = email;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    btn.textContent = '已复制';
+    window.setTimeout(() => {
+      btn.textContent = '复制';
+    }, 1600);
+  });
+</script>

@@ -1,10 +1,219 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Comments from '../components/Comments.astro';
+import { ARTALK } from '../lib/site';
 ---
 
 <BaseLayout title="留言">
   <div class="container-narrow" style="padding-block: var(--sp-9);">
+    <!-- 页面头 -->
+    <header class="page-head reveal-x">
+      <p class="micro-label">GUESTBOOK // 留言板</p>
+      <h1 class="display-title">留言板</h1>
+      <p class="gb-lead">来了就是客——反馈、闲聊、捉虫、交换友链，都欢迎。</p>
+    </header>
+
+    <!-- 公告 -->
+    <div class="panel reveal-x gb-notice">
+      <p class="micro-label">NOTICE // 公告</p>
+      <p class="gb-notice-text">
+        欢迎来到家玉的小站留言板。友善交流，理性讨论；支持 Markdown 与图片，广告与无意义灌水会被清理。
+        文章页评论区与这里使用同一套评论系统（Artalk），留言互通。
+      </p>
+    </div>
+
+    <!-- 留言板数据（客户端拉取 Artalk stats API，失败自动降级） -->
+    <section
+      class="panel reveal-x gb-stats"
+      data-artalk-server={ARTALK.server}
+      data-artalk-site={ARTALK.site}
+      data-page-key="/guestbook/"
+      aria-label="留言板数据"
+    >
+      <p class="micro-label">STATS // 留言板数据</p>
+      <div class="gb-stat-grid">
+        <div class="gb-stat">
+          <span class="gb-stat-val" id="gb-count-site">—</span>
+          <span class="gb-stat-label">全站留言</span>
+        </div>
+        <div class="gb-stat">
+          <span class="gb-stat-val" id="gb-count-page">—</span>
+          <span class="gb-stat-label">本页留言</span>
+        </div>
+        <div class="gb-stat">
+          <span class="gb-stat-val" id="gb-count-pv">—</span>
+          <span class="gb-stat-label">站点访问</span>
+        </div>
+      </div>
+
+      <div class="gb-latest">
+        <p class="gb-latest-head">
+          <span class="micro-label">LATEST // 最新留言</span>
+          <a class="gb-latest-more" href="#artalk-comments">去留言 ↓</a>
+        </p>
+        <ul class="gb-latest-list" id="gb-latest-list"></ul>
+        <p class="gb-latest-empty" id="gb-latest-empty" hidden>还没有留言，来抢沙发吧。</p>
+      </div>
+
+      <p class="gb-stats-error" id="gb-stats-error" hidden>
+        留言数据暂时加载失败（评论服务不可达），但下方留言功能可能仍然可用，稍后再来看看吧。
+      </p>
+    </section>
+
+    <!-- 评论区 -->
     <Comments pageKey="/guestbook/" pageTitle="留言板" />
   </div>
 </BaseLayout>
+
+<script>
+  // ===== 留言板数据面板：拉取 Artalk stats API =====
+  (function () {
+    const root = document.querySelector<HTMLElement>('[data-artalk-server]');
+    const server = root?.dataset.artalkServer;
+    const site = root?.dataset.artalkSite ?? '';
+    const pageKey = root?.dataset.pageKey ?? '/guestbook/';
+    if (!server) return;
+
+    const q = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
+
+    async function fetchData(path: string, extra: string = ''): Promise<any> {
+      const url = `${server}${path}?site_name=${encodeURIComponent(site)}${extra ? '&' + extra : ''}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('http ' + res.status);
+      const json = await res.json();
+      if (!json || typeof json.data === 'undefined') throw new Error('bad payload');
+      return json.data;
+    }
+
+    function relTime(iso: string): string {
+      const t = new Date(iso).getTime();
+      if (isNaN(t)) return '';
+      const diff = Date.now() - t;
+      const min = Math.floor(diff / 60000);
+      if (min < 1) return '刚刚';
+      if (min < 60) return `${min} 分钟前`;
+      const h = Math.floor(min / 60);
+      if (h < 24) return `${h} 小时前`;
+      const d = Math.floor(h / 24);
+      if (d < 30) return `${d} 天前`;
+      return new Date(t).toLocaleDateString('zh-CN');
+    }
+
+    /** page_key → 可读位置名（站内路径直接可点） */
+    function pageLabel(key: string): string {
+      if (!key) return '留言板';
+      if (key === pageKey) return '留言板';
+      const m = key.match(/\/posts\/([^/]+)\/$/);
+      if (m) return `文章 · ${decodeURIComponent(m[1])}`;
+      return key;
+    }
+
+    /** 提取评论内容纯文本（Artalk 返回渲染后的 HTML） */
+    function plainText(html: string): string {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      return (div.textContent ?? '').replace(/\s+/g, ' ').trim();
+    }
+
+    /** 头像：email_encrypted + gravatar mirror（与 Artalk 前端一致） */
+    function avatar(emailEncrypted: string): string {
+      if (!emailEncrypted) return '';
+      return `https://weavatar.com/avatar/${emailEncrypted}?sha256=1&d=mp&s=48`;
+    }
+
+    function renderLatest(list: any[]) {
+      const ul = q('ul#gb-latest-list');
+      const empty = q('#gb-latest-empty');
+      if (!ul) return;
+      ul.innerHTML = '';
+      if (!list || list.length === 0) {
+        if (empty) empty.hidden = false;
+        return;
+      }
+      if (empty) empty.hidden = true;
+      list.forEach((c) => {
+        const li = document.createElement('li');
+        li.className = 'gb-latest-item';
+
+        const img = document.createElement('img');
+        img.className = 'gb-latest-avatar';
+        img.loading = 'lazy';
+        const av = avatar(c.email_encrypted);
+        if (av) {
+          img.src = av;
+          img.alt = '';
+        } else {
+          img.hidden = true;
+        }
+
+        const body = document.createElement('div');
+        body.className = 'gb-latest-body';
+
+        const head = document.createElement('p');
+        head.className = 'gb-latest-meta';
+        const nick = document.createElement('span');
+        nick.className = 'gb-latest-nick';
+        nick.textContent = c.nick || '匿名';
+        const time = document.createElement('time');
+        time.className = 'gb-latest-time';
+        time.textContent = relTime(c.date);
+        head.append(nick, time);
+
+        const text = document.createElement('p');
+        text.className = 'gb-latest-text';
+        text.textContent = plainText(c.content || '').slice(0, 90);
+
+        const foot = document.createElement('p');
+        foot.className = 'gb-latest-from';
+        foot.textContent = '来自 ';
+        const a = document.createElement('a');
+        if (c.page_key) {
+          a.href = c.page_key.startsWith('/') ? c.page_key : '/' + c.page_key;
+        } else {
+          a.href = c.page_url || pageKey;
+        }
+        a.textContent = pageLabel(c.page_key || '');
+        foot.appendChild(a);
+
+        body.append(head, text, foot);
+        li.append(img, body);
+        ul.appendChild(li);
+      });
+    }
+
+    async function load() {
+      const results = await Promise.allSettled([
+        fetchData('/api/v2/stats/site_comment'),
+        fetchData('/api/v2/stats/page_comment', 'page_keys=' + encodeURIComponent(pageKey)),
+        fetchData('/api/v2/stats/site_pv'),
+        fetchData('/api/v2/stats/latest_comments', 'limit=6'),
+      ]);
+      // 全部失败 → 显示降级提示
+      if (results.every((r) => r.status === 'rejected')) {
+        const err = q('#gb-stats-error');
+        if (err) err.hidden = false;
+        const latestWrap = document.querySelector<HTMLElement>('.gb-latest');
+        if (latestWrap) latestWrap.style.display = 'none';
+        return;
+      }
+      const [siteComment, pageComment, sitePv, latest] = results.map((r) =>
+        r.status === 'fulfilled' ? r.value : null
+      );
+      if (typeof siteComment === 'number') {
+        const el = q('#gb-count-site');
+        if (el) el.textContent = String(siteComment);
+      }
+      if (typeof sitePv === 'number') {
+        const el = q('#gb-count-pv');
+        if (el) el.textContent = sitePv.toLocaleString();
+      }
+      if (pageComment && typeof pageComment === 'object') {
+        const el = q('#gb-count-page');
+        if (el) el.textContent = String(pageComment[pageKey] ?? 0);
+      }
+      if (Array.isArray(latest)) renderLatest(latest);
+    }
+
+    void load();
+  })();
+</script>

@@ -1,4 +1,4 @@
-import { getCollection } from 'astro:content';
+import { getCollection, type CollectionEntry } from 'astro:content';
 
 /** 站点元信息 */
 export const SITE = {
@@ -9,6 +9,10 @@ export const SITE = {
   author: 'Yu',
   description: '记录 · 思考 · 建造 —— Yu 的个人博客',
   coords: '31.2304°N 121.4737°E', // 装饰坐标（上海）
+  /** 站点根地址：RSS / sitemap / canonical / OpenGraph 用；上线后按实际域名修改 */
+  url: 'https://blog.sparklerrr.cn',
+  /** 联系邮箱（联系页展示；请改成你的真实邮箱） */
+  email: 'yu@sparklerrr.cn',
 } as const;
 
 /** Artalk 评论系统配置 */
@@ -28,10 +32,40 @@ export const CATEGORIES = {
 
 export type CategoryId = keyof typeof CATEGORIES;
 
-/** 按日期倒序返回已发布文章 */
+/** 返回已发布文章：置顶优先，其余按日期倒序 */
 export async function getPosts() {
   const posts = await getCollection('posts', ({ data }) => !data.draft);
-  return posts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+  return posts.sort(
+    (a, b) =>
+      Number(b.data.pin) - Number(a.data.pin) || b.data.date.valueOf() - a.data.date.valueOf(),
+  );
+}
+
+export type Post = CollectionEntry<'posts'>;
+
+/** 标签 → 篇数，按数量降序（同数量按名称升序） */
+export function countTags(posts: Post[]): [string, number][] {
+  const m = new Map<string, number>();
+  for (const p of posts) for (const t of p.data.tags) m.set(t, (m.get(t) ?? 0) + 1);
+  return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh'));
+}
+
+/** 按年份倒序分组（归档时间线用） */
+export function groupByYear(posts: Post[]): { year: number; posts: Post[] }[] {
+  const m = new Map<number, Post[]>();
+  for (const p of posts) {
+    const y = p.data.date.getFullYear();
+    const list = m.get(y);
+    if (list) list.push(p);
+    else m.set(y, [p]);
+  }
+  return [...m.entries()].sort((a, b) => b[0] - a[0]).map(([year, list]) => ({ year, posts: list }));
+}
+
+/** 按日期倒序返回全部动态 */
+export async function getMoments() {
+  const moments = await getCollection('moments');
+  return moments.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 }
 
 /** YYYY-MM-DD */
@@ -40,6 +74,13 @@ export function formatDate(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+/** YYYY-MM-DD HH:mm */
+export function formatDateTime(d: Date): string {
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${formatDate(d)} ${hh}:${mm}`;
 }
 
 /** 粗略阅读时长（分钟）：中文按 400 字/分钟，英文按 200 词/分钟 */

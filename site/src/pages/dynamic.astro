@@ -1,13 +1,135 @@
 ---
+import { render } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Placeholder from '../components/Placeholder.astro';
+import Tag from '../components/Tag.astro';
+import EmptyState from '../components/EmptyState.astro';
+import { formatDateTime, getMoments } from '../lib/site';
+
+const moments = await getMoments();
+
+const TYPE_META = {
+  text: { en: 'TEXT', zh: '文字' },
+  image: { en: 'IMAGE', zh: '图片' },
+  link: { en: 'LINK', zh: '链接' },
+} as const;
+
+// 构建时预渲染每条动态的 Markdown 内容
+const rendered = await Promise.all(
+  moments.map(async (m) => ({
+    entry: m,
+    Content: (await render(m)).Content,
+  }))
+);
 ---
 
 <BaseLayout title="动态">
-  <Placeholder
-    eyebrow="DYNAMIC // 动态"
-    title="动态"
-    message="动态建设中"
-    hint="以后在这里发一些即时状态。"
-  />
+  <section class="container">
+    <div class="panel reveal-x">
+      <header class="page-head">
+        <p class="micro-label">DYNAMIC // 动态</p>
+        <h1 class="display-title">动态</h1>
+        <p class="micro-label" style="margin-top: var(--sp-3);">MOMENTS // {moments.length} 条 · 最新在前</p>
+      </header>
+
+      {
+        moments.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div class="timeline">
+            {rendered.map(({ entry, Content }, i) => {
+              const meta = TYPE_META[entry.data.type] ?? TYPE_META.text;
+              return (
+                <article class="moment">
+                  <span class="moment-dot" aria-hidden="true"></span>
+                  <div class="moment-card card reveal" style={"--reveal-delay:" + i * 70 + "ms"}>
+                    <header class="moment-head">
+                      <span class="moment-type">{meta.en} // {meta.zh}</span>
+                      <time class="moment-time" datetime={entry.data.date.toISOString()}>
+                        {formatDateTime(entry.data.date)}
+                      </time>
+                    </header>
+                    <div class="moment-body">
+                      <Content />
+                    </div>
+                    {entry.data.images.length > 0 && (
+                      <div class="moment-imgs">
+                        {entry.data.images.map((src, k) => (
+                          <img
+                            class="moment-img"
+                            src={src}
+                            alt={"动态配图 " + (i + 1) + "-" + (k + 1)}
+                            loading="lazy"
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {entry.data.type === 'link' && entry.data.link && (
+                      <a
+                        class="moment-link"
+                        href={entry.data.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {entry.data.linkText ?? '打开链接'}
+                        <span aria-hidden="true"> ↗</span>
+                      </a>
+                    )}
+                    {entry.data.tags.length > 0 && (
+                      <div class="moment-tags">
+                        {entry.data.tags.map((t) => (
+                          <Tag text={t} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )
+      }
+
+      <p class="moments-note">
+        随手记的一些即时状态。写一条动态：在 <code>src/content/moments/</code> 新建一个 Markdown
+        文件，顶部声明 <code>date / type / tags / images / link</code>，正文即内容。
+      </p>
+    </div>
+  </section>
 </BaseLayout>
+
+<script>
+  // 配图点击放大：共享遮罩，支持 Esc / 点击空白关闭
+  const overlay = document.createElement('div');
+  overlay.className = 'moment-lightbox';
+  overlay.hidden = true;
+  overlay.innerHTML = '<figure class="moment-lightbox-fig"><img alt="" /><figcaption></figcaption></figure>';
+  document.body.appendChild(overlay);
+
+  const figImg = overlay.querySelector('img')!;
+  const figCap = overlay.querySelector('figcaption')!;
+
+  const openMomentImg = (img: HTMLImageElement) => {
+    figImg.src = img.src;
+    figImg.alt = img.alt;
+    figCap.textContent = img.alt;
+    overlay.hidden = false;
+    document.documentElement.style.overflow = 'hidden';
+  };
+  const closeMomentImg = () => {
+    overlay.hidden = true;
+    document.documentElement.style.overflow = '';
+  };
+
+  document.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const img = t.closest('.moment-img') as HTMLImageElement | null;
+    if (img) {
+      openMomentImg(img);
+      return;
+    }
+    if (t === overlay) closeMomentImg();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!overlay.hidden && e.key === 'Escape') closeMomentImg();
+  });
+</script>

@@ -8,10 +8,27 @@ import '../styles/design-system.css';
 interface Props {
   title?: string;
   description?: string;
+  /** OpenGraph 类型：website（默认）/ article（文章页） */
+  ogType?: 'website' | 'article';
+  /** 文章发布时间（article 类型时输出 article:published_time） */
+  publishedTime?: Date;
+  /** 文章最后更新时间（可选） */
+  modifiedTime?: Date;
+  /** OpenGraph 图片路径（可选，如 /avatar.png） */
+  image?: string;
 }
 
-const { title, description = SITE.description } = Astro.props;
+const {
+  title,
+  description = SITE.description,
+  ogType = 'website',
+  publishedTime,
+  modifiedTime,
+  image,
+} = Astro.props;
 const fullTitle = title ? `${title} | ${SITE.tabTitle}` : `${SITE.tabTitle} | ${SITE.en}`;
+const canonical = new URL(Astro.url.pathname, Astro.site ?? SITE.url).href;
+const ogImage = image ? new URL(image, canonical).href : undefined;
 ---
 
 <!doctype html>
@@ -22,6 +39,18 @@ const fullTitle = title ? `${title} | ${SITE.tabTitle}` : `${SITE.tabTitle} | ${
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <meta name="generator" content={Astro.generator} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:site_name" content={`${SITE.zh} · ${SITE.en}`} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={canonical} />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    {publishedTime && <meta property="article:published_time" content={publishedTime.toISOString()} />}
+    {modifiedTime && <meta property="article:modified_time" content={modifiedTime.toISOString()} />}
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -160,8 +189,12 @@ const fullTitle = title ? `${title} | ${SITE.tabTitle}` : `${SITE.tabTitle} | ${
     if (t.closest('#player-toggle')) {
       const audio = playerState.audio;
       if (audio) {
-        if (audio.paused) audio.play().catch(() => {});
-        else audio.pause();
+        if (audio.paused) {
+          audio.muted = false; // 点播放永远出声
+          audio.play().catch(() => {});
+        } else {
+          audio.pause();
+        }
       }
     } else if (t.closest('#player-next')) {
       loadTrack(playerState.index + 1);
@@ -201,6 +234,7 @@ const fullTitle = title ? `${title} | ${SITE.tabTitle}` : `${SITE.tabTitle} | ${
       const audio = playerState.audio;
       if (audio) {
         audio.muted = !audio.muted;
+        if (audio.muted) userMutedByClick = true; // 用户手动静音后不再自动解除
         const btn = t.closest('#player-mute');
         if (btn)
           btn.innerHTML = audio.muted || audio.volume === 0 ? playerIcons.volMute : playerIcons.volHigh;
@@ -363,6 +397,28 @@ const fullTitle = title ? `${title} | ${SITE.tabTitle}` : `${SITE.tabTitle} | ${
 
   // 模块级共享音频：new Audio() 不挂在 DOM 上，页面切换（ClientRouter）不会销毁它
   let sharedAudio: HTMLAudioElement | null = null;
+  // 用户是否手动点过静音（点过之后不再自动解除静音）
+  let userMutedByClick = false;
+
+  // 首次与页面交互：若自动播放被浏览器拦截则补播，并解除静音出声
+  const unmuteOnFirstInteraction = () => {
+    if (sharedAudio) {
+      if (sharedAudio.paused) {
+        sharedAudio.play().catch(() => {});
+      }
+      if (sharedAudio.muted && !userMutedByClick) {
+        sharedAudio.muted = false;
+        const btn = q('#player-mute');
+        if (btn) btn.innerHTML = playerIcons.volHigh;
+      }
+    }
+    document.removeEventListener('pointerdown', unmuteOnFirstInteraction);
+    document.removeEventListener('keydown', unmuteOnFirstInteraction);
+    document.removeEventListener('touchstart', unmuteOnFirstInteraction);
+  };
+  document.addEventListener('pointerdown', unmuteOnFirstInteraction);
+  document.addEventListener('keydown', unmuteOnFirstInteraction);
+  document.addEventListener('touchstart', unmuteOnFirstInteraction);
 
   const fmtTime = (sec: number) => {
     if (!isFinite(sec)) return '0:00';
@@ -478,6 +534,8 @@ const fullTitle = title ? `${title} | ${SITE.tabTitle}` : `${SITE.tabTitle} | ${
           btn.innerHTML = playerIcons.pause;
           btn.setAttribute('aria-label', '暂停');
         }
+        const mb = q('#player-mute');
+        if (mb) mb.innerHTML = sharedAudio!.muted || sharedAudio!.volume === 0 ? playerIcons.volMute : playerIcons.volHigh;
       });
       sharedAudio.addEventListener('pause', () => {
         q('#player-disc')?.classList.remove('is-playing');
@@ -513,9 +571,14 @@ const fullTitle = title ? `${title} | ${SITE.tabTitle}` : `${SITE.tabTitle} | ${
     }
     playerState.audio = sharedAudio;
 
-    // 首次加载（无 src 时）或同步现有状态到新 DOM
-    if (!sharedAudio.src) loadTrack(0);
-    else syncPlayerUI();
+    // 首次加载（无 src 时）：静音自动播放（浏览器允许），
+    // 用户第一次与页面交互时自动解除静音；或同步现有状态到新 DOM
+    if (!sharedAudio.src) {
+      sharedAudio.muted = true; // 静音自动播放
+      loadTrack(0);
+    } else {
+      syncPlayerUI();
+    }
   };
 
   const init = () => {

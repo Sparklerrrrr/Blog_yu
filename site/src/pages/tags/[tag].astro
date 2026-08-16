@@ -1,0 +1,43 @@
+---
+import type { Post } from '../../lib/site';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ArticleCard from '../../components/ArticleCard.astro';
+import { countTags, getPosts } from '../../lib/site';
+
+interface Props {
+  tag: string;
+  posts: Post[];
+}
+
+export async function getStaticPaths() {
+  const posts = await getPosts();
+  const tags = countTags(posts).map(([tag]) => tag);
+  return tags.map((tag) => ({
+    params: { tag },
+    props: { tag, posts: posts.filter((p) => p.data.tags.includes(tag)) },
+  }));
+}
+
+const { tag, posts } = Astro.props;
+---
+
+<BaseLayout title={`标签：${tag}`} description={`「${tag}」标签下的全部文章。`}>
+  <section class="container">
+    <div class="panel reveal-x">
+      <header class="page-head">
+        <p class="micro-label">TAG // 标签</p>
+        <h1 class="display-title">{tag}</h1>
+        <p class="micro-label" style="margin-top: var(--sp-3);">
+          TOTAL // {posts.length} POSTS
+          <a class="back" href="/tags/" style="margin-left: var(--sp-4);">← 全部标签</a>
+        </p>
+      </header>
+
+      <div class="card-grid">
+        {posts.map((post, i) => (
+          <ArticleCard post={post} delay={i * 50} />
+        ))}
+      </div>
+    </div>
+  </section>
+</BaseLayout>
