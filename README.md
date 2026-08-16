@@ -3,7 +3,7 @@
 > 灵感来自鹰角网络与《明日方舟》平面设计的个人博客，整体冰川蓝浅色主题，基于 Astro 构建。
 > 设计参考：[明日方舟官网](https://ak.hypergryph.com/)（导航与板块过渡）、[清风博客](https://blog.myqfeng.top/)（导航布局与音乐播放器）、[070219.xyz](https://070219.xyz/)（选中高亮）、[DeepSeek Harness](https://www.deepseek.com/harness/)（版块透明度与发光）。
 
-**当前版本：v1.1.0**
+**当前版本：v1.2.0**
 
 ## ✨ 特性
 

@@ -1,65 +1,289 @@
 ---
+import { readFileSync } from 'node:fs';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/Hero.astro';
 import SectionHead from '../components/SectionHead.astro';
-import ArticleCard from '../components/ArticleCard.astro';
-import EmptyState from '../components/EmptyState.astro';
-import { CATEGORIES, getPosts, SITE } from '../lib/site';
+import { CATEGORIES, formatDate, getPosts, SITE } from '../lib/site';
+
+// 从 package.json 读取真实版本
+const pkg = JSON.parse(readFileSync('package.json', 'utf-8')); // cwd 为 site/
+const blogVersion = pkg.version ?? '1.1.0';
+const astroVersion = (pkg.dependencies?.astro ?? '').replace(/^\^/, '') || '7';
+const nodeVersion = 'v22.23.2';
+const pnpmVersion = '11.21.0';
 
 const posts = await getPosts();
 const latest = posts.slice(0, 6);
-const cats = Object.entries(CATEGORIES);
+
+// 站点统计
+const tagSet = new Set(posts.flatMap((p) => p.data.tags));
+const totalChars = posts.reduce((sum, p) => {
+  const cjk = (p.body ?? '').match(/[\u4e00-\u9fff]/g)?.length ?? 0;
+  const words = (p.body ?? '').split(/\s+/).filter(Boolean).length;
+  return sum + cjk + words;
+}, 0);
+const LAUNCH = new Date('2026-08-15T00:00:00+08:00').getTime();
+const runDays = Math.max(0, Math.floor((Date.now() - LAUNCH) / 86400000));
+const lastPost = posts.length > 0 ? posts[0].data.date : null;
+const lastActiveDays = lastPost
+  ? Math.max(0, Math.floor((Date.now() - lastPost.getTime()) / 86400000))
+  : null;
+
+// 日历：当月 + 有文章的日子高亮
+const now = new Date();
+const calYear = now.getFullYear();
+const calMonth = now.getMonth();
+const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+const leading = new Date(calYear, calMonth, 1).getDay(); // 0=周日
+const postDays = new Set(
+  posts
+    .filter((p) => p.data.date.getFullYear() === calYear && p.data.date.getMonth() === calMonth)
+    .map((p) => p.data.date.getDate())
+);
+const weekLabels = ['日', '一', '二', '三', '四', '五', '六'];
+
+// 年度热力图：12 个月，每月每周的文章数（hover 提示「X月第Y周，N篇文章」）
+const heatmapMonths: { label: string; weeks: number[] }[] = [];
+for (let m = 0; m < 12; m++) {
+  // 每月天数由 Date API 按当年计算：闰年 2 月 29 天→5 格，平年 28 天→4 格
+  const days = new Date(calYear, m + 1, 0).getDate();
+  const weekCount = Math.ceil(days / 7); // 每月 7 天一块：1-7、8-14…最多 5 格
+  const weeks: number[] = [];
+  for (let w = 0; w < weekCount; w++) {
+    const start = w * 7 + 1;
+    const end = Math.min(start + 6, days);
+    const count = posts.filter(
+      (p) =>
+        p.data.date.getFullYear() === calYear &&
+        p.data.date.getMonth() === m &&
+        p.data.date.getDate() >= start &&
+        p.data.date.getDate() <= end
+    ).length;
+    weeks.push(count);
+  }
+  heatmapMonths.push({ label: `${m + 1}月`, weeks });
+}
+
+const accountLinks = [
+  { name: 'Gitee', url: 'https://gitee.com/yu_sparklerrr' },
+  { name: 'GitHub', url: 'https://github.com/Sparklerrrrr' },
+  { name: 'Bilibili', url: 'https://space.bilibili.com/421381039' },
+];
 ---
 
 <BaseLayout>
   <Hero />
 
+  <!-- 最新动态：左个人卡 + 右最新文章 -->
   <section id="latest" class="section container">
-    <div class="panel reveal-x">
-      <SectionHead eyebrow="LATEST // 最新" title="最新文章" />
-      {
-        latest.length > 0 ? (
-          <div class="card-grid">
-            {latest.map((post, i) => (
-              <ArticleCard post={post} delay={i * 60} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState />
-        )
-      }
-    </div>
-  </section>
+    <SectionHead eyebrow="LATEST // 最新" title="最新动态" />
+    <div class="home-latest">
+      <aside class="panel reveal-x home-profile">
+        <a class="home-avatar" href="/about/">
+          <img src="/avatar.png" alt="我的头像" />
+        </a>
+        <p class="home-name">{SITE.zh}</p>
+        <p class="home-sub">{SITE.author} · {SITE.en}</p>
+        <p class="home-tagline">{SITE.description.split('——')[1]?.trim() ?? '记录 · 思考 · 建造'}</p>
+        <div class="home-links">
+          {accountLinks.map((l) => (
+            <a class="tag" href={l.url} target="_blank" rel="noopener">{l.name}</a>
+          ))}
+        </div>
+      </aside>
 
-  <section id="categories" class="section container">
-    <div class="panel reveal-x" style="--reveal-delay:80ms">
-      <SectionHead eyebrow="CATEGORIES // 分类" title="分类入口" />
-      <div class="cat-grid">
-        {cats.map(([id, cat], i) => (
-          <a
-            class="card cat-block reveal"
-            href={`/posts/?cat=${id}`}
-            data-category={id}
-            data-tilt
-            style={`--reveal-delay:${i * 80}ms`}
-          >
-            <p class="micro-label">{cat.en}</p>
-            <p class="cat-name">{cat.zh}</p>
-            <span class="cat-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
-          </a>
-        ))}
+      <div class="panel reveal-x home-posts" style="--reveal-delay:80ms">
+        <div class="home-posts-head">
+          <p class="micro-label">RECENT // 最新文章</p>
+          <a class="tag" href="/archive/">更多 ARCHIVE →</a>
+        </div>
+        {
+          latest.length > 0 ? (
+            <ul class="home-post-list">
+              {latest.map((post, i) => {
+                const cat = CATEGORIES[post.data.category];
+                return (
+                  <li class="home-post-item" data-category={post.data.category}>
+                    <a class="home-post-link" href={`/posts/${post.id}/`}>
+                      <span class="home-post-title">{post.data.title}</span>
+                      <span class="home-post-meta">
+                        {cat.zh} · {formatDate(post.data.date)}
+                      </span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p class="empty-hint" style="margin: var(--sp-5) 0;">还没有文章，去写第一篇吧。</p>
+          )
+        }
       </div>
     </div>
   </section>
 
+  <!-- 数据面板：站点统计 / 站点信息 / 日历 -->
+  <section id="stats" class="section container">
+    <SectionHead eyebrow="DASHBOARD // 数据" title="站点数据" />
+    <div class="home-dash">
+      <!-- 站点统计 -->
+      <div class="panel reveal-x dash-card">
+        <p class="micro-label">STATS // 站点统计</p>
+        <ul class="stat-list">
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 17h7v-2H7zm0-4h10v-2H7zm0-4h10V7H7zM5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v14q0 .825-.587 1.413T19 21zm0-2h14V5H5zM5 5v14z"/></svg></span><span class="stat-name">文章</span><span class="stat-val">{posts.length}</span></li>
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h6l2 2h8q.825 0 1.413.588T22 8v10q0 .825-.587 1.413T20 20z"/></svg></span><span class="stat-name">分类</span><span class="stat-val">{Object.keys(CATEGORIES).length}</span></li>
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58s1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg></span><span class="stat-name">标签</span><span class="stat-val">{tagSet.size}</span></li>
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"/></svg></span><span class="stat-name">总字数</span><span class="stat-val">{totalChars.toLocaleString()}</span></li>
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 1H9v2h6zm-4 13h2V8h-2zm8.03-6.61 1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg></span><span class="stat-name">运行时长</span><span class="stat-val">{runDays} 天</span></li>
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8z"/></svg></span><span class="stat-name">最后活动</span><span class="stat-val">{lastActiveDays === null ? '—' : `${lastActiveDays} 天前`}</span></li>
+        </ul>
+      </div>
+
+      <!-- 站点信息 -->
+      <div class="panel reveal-x dash-card" style="--reveal-delay:80ms">
+        <p class="micro-label">INFO // 站点信息</p>
+        <ul class="stat-list">
+          <li>
+            <span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 20q-2.275 0-3.887-1.575T1 14.575q0-1.95 1.175-3.475T5.25 9.15q.625-2.3 2.5-3.725T12 4q2.925 0 4.963 2.038T19 11q1.725.2 2.863 1.488T23 15.5q0 1.875-1.312 3.188T18.5 20zm0-2h12q1.05 0 1.775-.725T21 15.5t-.725-1.775T18.5 13H17v-2q0-2.075-1.463-3.538T12 6T8.463 7.463T7 11h-.5q-1.45 0-2.475 1.025T3 14.5t1.025 2.475T6.5 18m5.5-6"/></svg></span>
+            <span class="stat-name">构建平台</span><span class="stat-val">EdgeOne Pages</span>
+          </li>
+          <li>
+            <span class="stat-icon"><img src="/icons/avatar-icon.png" alt="头像图标" /></span>
+            <span class="stat-name">博客版本</span><span class="stat-val">BLOG_YU v{blogVersion}</span>
+          </li>
+          <li>
+            <span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.08 10.86c.05-.33.16-.62.3-.87s.34-.46.59-.62c.24-.15.54-.22.91-.23.23.01.44.05.63.13.2.09.38.21.52.36s.25.33.34.53.13.42.14.64h1.79c-.02-.47-.11-.9-.28-1.29s-.4-.73-.7-1.01-.66-.5-1.08-.66-.88-.23-1.39-.23c-.65 0-1.22.11-1.7.34s-.88.53-1.2.92-.56.84-.71 1.36S8 11.29 8 11.87v.27c0 .58.08 1.12.23 1.64s.39.97.71 1.35.72.69 1.2.91 1.05.34 1.7.34c.47 0 .91-.08 1.32-.23s.77-.36 1.08-.63.56-.58.74-.94.29-.74.3-1.15h-1.79c-.01.21-.06.4-.15.58s-.21.33-.36.46-.32.23-.52.3c-.19.07-.39.09-.6.1-.36-.01-.66-.08-.89-.23-.25-.16-.45-.37-.59-.62s-.25-.55-.3-.88-.08-.67-.08-1v-.27c0-.35.03-.68.08-1.01zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg></span>
+            <span class="stat-name">文章许可</span><span class="stat-val">CC BY-NC-SA 4.0</span>
+          </li>
+          <li>
+            <span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/></svg></span>
+            <span class="stat-name">站点域名</span><a class="stat-val stat-link" href="https://www.sparklerrr.cn/" target="_blank" rel="noopener">sparklerrr.cn →</a>
+          </li>
+          <li>
+            <span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m22.7 19-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg></span>
+            <span class="stat-name">Astro</span><span class="stat-val">v{astroVersion}</span>
+          </li>
+          <li>
+            <span class="stat-icon"><svg viewBox="0 0 448 512" fill="currentColor"><path d="M224 508c-6.7 0-13.5-1.8-19.4-5.2l-61.7-36.5c-9.2-5.2-4.7-7-1.7-8 12.3-4.3 14.8-5.2 27.9-12.7 1.4-.8 3.2-.5 4.6.4l47.4 28.1c1.7 1 4.1 1 5.7 0l184.7-106.6c1.7-1 2.8-3 2.8-5V149.5c0-2.1-1.1-4-2.9-5L227.7 38.1c-1.7-1-3.9-1-5.6 0L37.4 144.5c-1.8 1-2.9 3-2.9 5v213c0 2.1 1.1 4 2.9 4.9l50.6 29.2c27.5 13.7 44.3-2.4 44.3-18.7V167.5c0-3 2.4-5.3 5.4-5.3h23.4c3 0 5.4 2.4 5.4 5.3V378c0 36.6-20 57.6-54.7 57.6-10.7 0-19.1 0-42.8-11.6l-48.7-28.1c-12-6.9-19.4-19.7-19.4-33.7v-213c0-14 7.4-26.8 19.4-33.7L204.5 8.9c11.8-6.8 27.3-6.8 39.1 0l184.8 106.7c12 6.9 19.4 19.7 19.4 33.7v213c0 14-7.4 26.8-19.4 33.7L243.5 502.8c-5.9 3.4-12.6 5.2-19.5 5.2zm32-157.7c-80.9 0-97.8-37.1-97.8-68.3 0-3 2.4-5.3 5.4-5.3h23.8c2.7 0 5 2 5.4 4.6 3.7 25 14.7 37.6 63.2 37.6 38.9 0 55.4-8.8 55.4-29.4 0-11.9-4.7-20.7-65-26.6-50.3-4.9-81.4-16.1-81.4-56.3 0-37.1 31.3-59.2 83.7-59.2 58.9 0 88 20.4 91.7 64.3.2 2.9-2 5.5-5.4 5.5h-23.9c-2.5 0-4.7-1.7-5.3-4.1-5.9-26-20.3-34.3-57.1-34.3-42 0-46.9 14.7-46.9 25.7 0 13.3 5.8 17.2 63 24.7 56.6 7.4 83.4 17.9 83.4 58.3 0 39.8-33.2 62.6-90.8 62.6z"/></svg></span>
+            <span class="stat-name">Node</span><span class="stat-val">{nodeVersion}</span>
+          </li>
+          <li>
+            <span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 0v7.5h7.5V0H0zm8.25 0v7.5h7.498V0H8.25zm8.25 0v7.5H24V0h-7.5zM8.25 8.25v7.5h7.498v-7.5H8.25zm8.25 0v7.5H24v-7.5h-7.5zM0 16.5V24h7.5v-7.5H0zm8.25 0V24h7.498v-7.5H8.25zm8.25 0V24H24v-7.5h-7.5z"/></svg></span>
+            <span class="stat-name">pnpm</span><span class="stat-val">{pnpmVersion}</span>
+          </li>
+          <li>
+            <span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m22.7 19-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg></span>
+            <span class="stat-name">构建时间</span><span class="stat-val">2026年8月15日</span>
+          </li>
+          <li>
+            <span class="stat-icon stat-ubuntu"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.61.455a3.41 3.41 0 0 0-3.41 3.41 3.41 3.41 0 0 0 3.41 3.41 3.41 3.41 0 0 0 3.41-3.41 3.41 3.41 0 0 0-3.41-3.41zM12.92.8C8.923.777 5.137 2.941 3.148 6.451a4.5 4.5 0 0 1 .26-.007 4.92 4.92 0 0 1 2.585.737A8.316 8.316 0 0 1 12.688 3.6 4.944 4.944 0 0 1 13.723.834 11.008 11.008 0 0 0 12.92.8zm9.226 4.994a4.915 4.915 0 0 1-1.918 2.246 8.36 8.36 0 0 1-.273 8.303 4.89 4.89 0 0 1 1.632 2.54 11.156 11.156 0 0 0 .559-13.089zM3.41 7.932A3.41 3.41 0 0 0 0 11.342a3.41 3.41 0 0 0 3.41 3.409 3.41 3.41 0 0 0 3.41-3.41 3.41 3.41 0 0 0-3.41-3.41zm2.027 7.866a4.908 4.908 0 0 1-2.915.358 11.1 11.1 0 0 0 7.991 6.698 11.234 11.234 0 0 0 2.422.249 4.879 4.879 0 0 1-.999-2.85 8.484 8.484 0 0 1-.836-.136 8.304 8.304 0 0 1-5.663-4.32zm11.405.928a3.41 3.41 0 0 0-3.41 3.41 3.41 3.41 0 0 0 3.41 3.41 3.41 3.41 0 0 0 3.41-3.41 3.41 3.41 0 0 0-3.41-3.41z"/></svg></span>
+            <span class="stat-name">系统信息</span><span class="stat-val">Linux / x86_64</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- 日历（有文章的日子高亮） -->
+      <div class="panel reveal-x dash-card" style="--reveal-delay:160ms">
+        <p class="micro-label">CALENDAR // {calYear} 年 {calMonth + 1} 月</p>
+        <div class="cal-week">
+          {weekLabels.map((w) => <span class="cal-cell cal-head">{w}</span>)}
+        </div>
+        <div class="cal-week">
+          {Array.from({ length: leading }).map((_, i) => <span class="cal-cell" />)}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const isToday = day === now.getDate();
+            const count = posts.filter(
+              (p) =>
+                p.data.date.getFullYear() === calYear &&
+                p.data.date.getMonth() === calMonth &&
+                p.data.date.getDate() === day
+            ).length;
+            return (
+              <span
+                class={`cal-cell${isToday ? ' cal-today' : ''}${count > 0 ? ' cal-haspost' : ''}`}
+                title={count > 0 ? `${calMonth + 1}月${day}日，${count} 篇文章` : `${calMonth + 1}月${day}日`}
+              >
+                {day}
+              </span>
+            );
+          })}
+        </div>
+        <p class="cal-legend">
+          <span class="cal-frame-demo" aria-hidden="true"></span> 今天
+          <span class="cal-dot" aria-hidden="true"></span> 有文章
+        </p>
+        <div class="heatmap">
+          <div class="heatmap-months">
+            {heatmapMonths.map((h) => <span>{h.label}</span>)}
+          </div>
+          <div class="heatmap-months">
+            {heatmapMonths.map((h) => (
+              <div class="heatmap-col">
+                {h.weeks.map((count, w) => (
+                  <span
+                    class={`heat-square${count > 0 ? ' heat-on' : ''}`}
+                    title={`${h.label}第${w + 1}周，${count} 篇文章`}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <!-- 最新文章更新 -->
+        <div class="cal-updates">
+          <p class="micro-label">LATEST UPDATES // 最新更新</p>
+          <ul class="cal-update-list">
+            {latest.slice(0, 4).map((post) => {
+              const cat = CATEGORIES[post.data.category];
+              return (
+                <li>
+                  <a href={`/posts/${post.id}/`} title={post.data.title}>
+                    <span class="update-dot" style={`background:${cat.color}`} aria-hidden="true"></span>
+                    <span class="update-title">{post.data.title}</span>
+                    <span class="update-date">{formatDate(post.data.date)}</span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 关于本站 -->
   <section id="about-brief" class="section container">
-    <div class="panel reveal-x" style="--reveal-delay:160ms">
-      <SectionHead eyebrow="ABOUT // 关于" title="关于本站" />
-      <p class="about-brief">
-        这里是{SITE.zh}，{SITE.author} 的个人博客——记录技术、生活与思考。灵感来自鹰角网络与《明日方舟》的平面设计。
-      </p>
-      <p style="margin-top: var(--sp-4);">
-        <a class="tag" href="/about/">了解更多 ABOUT →</a>
+    <SectionHead eyebrow="ABOUT // 关于" title="关于本站" />
+    <div class="panel reveal-x">
+      <div class="about-rich">
+        <p>
+          这里是 <strong>{SITE.zh}</strong>（{SITE.en}），{SITE.author} 的个人博客。
+          站点的视觉语言脱胎于鹰角网络与《明日方舟》的平面设计——克制、有序、留白：
+          有色调的中性色打底，冰川蓝作为唯一的强调色，锐利直角与细描边承袭方舟官网的工业感，
+          克制的 0.3 秒动效与几何窄体字共同组成这套「冰川蓝」设计系统。
+        </p>
+        <p>
+          导航结构参考了清风博客的版块划分（文章 / 社交 / 我的 / 关于 / 链接），
+          右上角的悬浮搜索与音乐播放器也是向它致敬——播放器界面复刻其布局，
+          音乐采用自托管方案，站内切换页面不断播。
+        </p>
+        <p>
+          内容上，这里主要记录三类东西：<strong>技术</strong>（写代码与折腾工具的心得）、
+          <strong>生活</strong>（日常与随手记）、<strong>思考</strong>（一些想不清楚的事）。
+          所有文章均以 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> 许可发布，
+          欢迎注明出处后转载。
+        </p>
+        <p>
+          站点基于 Astro 构建、由 Gitee 托管源码；相册收藏了 16 张壁纸，
+          追番列表会在构建时自动与 B 站同步。如果你也喜欢这个风格，
+          欢迎到 <a href="https://gitee.com/yu_sparklerrr/blog_yu" target="_blank" rel="noopener">仓库</a> 逛逛或交换友链。
+        </p>
+      </div>
+      <p style="margin-top: var(--sp-5);">
+        <a class="tag" href="/about/">关于我 →</a>
+        <a class="tag" style="margin-left: var(--sp-3);" href="/guestbook/">留言板 →</a>
       </p>
     </div>
   </section>
