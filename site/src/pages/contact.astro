@@ -96,26 +96,54 @@ const socials = [
 
 <script>
   // 邮箱复制（DOM 随页面切换重建，监听器绑在新元素上，不会重复）
-  document.getElementById('contact-copy')?.addEventListener('click', async function () {
+  document.getElementById('contact-copy')?.addEventListener('click', function () {
     const btn = this as HTMLButtonElement;
     const email = document.getElementById('contact-email')?.textContent?.trim() ?? '';
     if (!email) return;
-    try {
-      await navigator.clipboard.writeText(email);
-    } catch {
-      // 剪贴板 API 不可用时的降级方案
-      const ta = document.createElement('textarea');
-      ta.value = email;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
+
+    const finish = (ok: boolean) => {
+      if (ok) {
+        btn.textContent = '已复制';
+        window.setTimeout(() => {
+          btn.textContent = '复制';
+        }, 1600);
+      } else {
+        btn.textContent = '复制失败';
+        window.setTimeout(() => {
+          btn.textContent = '复制';
+        }, 1600);
+      }
+    };
+
+    // 优先现代 Clipboard API（secure context 下可用）
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard
+        .writeText(email)
+        .then(() => finish(true))
+        .catch(() => finish(copyFallbackSync(email)));
+      return;
     }
-    btn.textContent = '已复制';
-    window.setTimeout(() => {
-      btn.textContent = '复制';
-    }, 1600);
+    // 非安全上下文（http）或旧浏览器：同步 execCommand，必须处于用户手势内
+    finish(copyFallbackSync(email));
   });
+
+  function copyFallbackSync(text: string): boolean {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
 </script>

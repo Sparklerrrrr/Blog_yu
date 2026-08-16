@@ -30,7 +30,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           <p class="sponsor-tip">使用 支付宝 扫码打赏</p>
           <a class="sponsor-btn alipay" href="https://qr.alipay.com/fkx16146ug4azwk6yo2cm84" data-jump="alipay" rel="noopener">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15" /><path d="m13 6 6 6-6 6" /></svg>
-            跳转支付宝付款
+            <span>跳转支付宝付款</span>
           </a>
         </div>
 
@@ -43,12 +43,16 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             <img class="sponsor-qr" src="/sponsor/wechat-qr.jpg" alt="微信收款码" loading="lazy" />
           </a>
           <p class="sponsor-tip">使用 微信 扫码打赏</p>
-          <a class="sponsor-btn wechat" href="weixin://" data-jump="wechat" rel="noopener">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15" /><path d="m13 6 6 6-6 6" /></svg>
-            打开微信扫一扫
+          <a class="sponsor-btn wechat" href="https://payapp.wechatpay.cn/sjt/qr/xzb_782576cc568404df839359e19965aef6_001" data-action="wechat-pay" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
+            <span>复制收款链接 · 跳转付款</span>
           </a>
+          <button type="button" class="sponsor-btn wechat ghost" data-jump="wechat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15" /><path d="m13 6 6 6-6 6" /></svg>
+            <span>打开微信扫一扫</span>
+          </button>
           <p class="sponsor-hint" data-hint="wechat">
-            如未自动打开微信：请长按收款码保存图片，再进入微信「扫一扫 → 相册」识别
+            在微信内打开本页：点击绿色按钮直接跳转付款；在浏览器打开：点击按钮复制收款链接，粘贴到微信任意聊天框（如文件传输助手）发送后点击即可付款
           </p>
         </div>
       </div>
@@ -60,7 +64,63 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   </section>
 
   <script>
-    // 打赏跳转：支付宝深链唤起付款页；微信唤起客户端（个人收款码没有付款深链）
+    // 打赏跳转：
+    // 支付宝：alipays:// 深链唤起付款页（未安装时回退网页版收款链接）
+    // 微信：收款链接在微信内可直接打开付款页；外部浏览器只能复制 #链接 到微信粘贴点击
+    const WECHAT_PAY_LINK = '#付款:Sparkler(w1020557056)/收款/001';
+    const isWeChatUA = /MicroMessenger/i.test(navigator.userAgent);
+
+    const copyText = async (text) => {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (err) {
+        // 继续走降级方案
+      }
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      let ok = false;
+      try {
+        ok = document.execCommand('copy');
+      } catch (err) {
+        ok = false;
+      }
+      document.body.removeChild(ta);
+      return ok;
+    };
+
+    const wechatHint = document.querySelector('[data-hint="wechat"]');
+
+    const payBtn = document.querySelector('[data-action="wechat-pay"]');
+    if (payBtn) {
+      const label = payBtn.querySelector('span');
+      if (isWeChatUA && label) {
+        // 微信内：按钮直接跳转收款链接付款页
+        label.textContent = '跳转微信付款';
+      }
+      payBtn.addEventListener('click', async (e) => {
+        if (isWeChatUA) {
+          // 微信内置浏览器：跟随 href 直达付款页
+          return;
+        }
+        e.preventDefault();
+        const ok = await copyText(WECHAT_PAY_LINK);
+        if (wechatHint) {
+          wechatHint.textContent = ok
+            ? '✅ 收款链接已复制！打开微信，粘贴到任意聊天框（如文件传输助手）发送，点击链接即可跳转付款'
+            : '复制失败，请手动复制这段文字：' + WECHAT_PAY_LINK + '，再粘贴到微信聊天框发送并点击';
+          wechatHint.classList.add('is-on');
+        }
+      });
+    }
+
     const jump = (btn) => {
       const kind = btn.dataset.jump;
       if (kind === 'alipay') {
@@ -76,11 +136,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         }, 1100);
       } else if (kind === 'wechat') {
         window.location.href = 'weixin://';
-        // 未能唤起微信时，展示保存图片再识别的指引
+        // 未能唤起微信时，展示指引
         setTimeout(() => {
-          if (!document.hidden) {
-            const hint = document.querySelector('[data-hint="wechat"]');
-            if (hint) hint.classList.add('is-on');
+          if (!document.hidden && wechatHint) {
+            wechatHint.textContent = '未能打开微信：请点击上方绿色按钮复制收款链接，粘贴到微信聊天框点击付款；或保存收款码图片后在「扫一扫 → 相册」识别';
+            wechatHint.classList.add('is-on');
           }
         }, 1100);
       }

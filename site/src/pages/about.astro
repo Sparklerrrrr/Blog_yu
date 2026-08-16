@@ -1,30 +1,122 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { SITE } from '../lib/site';
+
+const accounts = [
+  {
+    name: 'GitHub',
+    url: 'https://github.com/Sparklerrrrr',
+    desc: '代码仓库与开源项目',
+    icon: 'github',
+  },
+  {
+    name: 'Gitee',
+    url: 'https://gitee.com/yu_sparklerrr',
+    desc: '博客源码托管',
+    icon: 'gitee',
+  },
+  {
+    name: 'Bilibili',
+    url: 'https://space.bilibili.com/421381039',
+    desc: '追番列表与视频',
+    icon: 'bilibili',
+  },
+];
 ---
 
-<BaseLayout title="关于">
+<BaseLayout title="关于我">
   <section class="about container">
     <span class="watermark" style="top: 12%; right: 6%;" aria-hidden="true">YU</span>
     <div class="panel reveal-x">
-      <p class="micro-label">ABOUT // 关于</p>
-      <h1 class="display-title">ABOUT</h1>
-      <p class="lede reveal">
-        这里是{SITE.zh}（{SITE.en}），{SITE.author} 的个人博客。记录技术、生活与思考——
-        像明日方舟的界面一样：克制、有序、留白。
-      </p>
-      <dl class="facts reveal" style="--reveal-delay:120ms">
-        <dt>站名 NAME</dt>
-        <dd>{SITE.zh} / {SITE.en}</dd>
-        <dt>署名 AUTHOR</dt>
-        <dd>{SITE.author}</dd>
-        <dt>定位 FOCUS</dt>
-        <dd>记录 · 思考 · 建造</dd>
-        <dt>坐标 COORDS</dt>
-        <dd>{SITE.coords}</dd>
+      <!-- 身份头 -->
+      <header class="about-head">
+        <a class="about-avatar" href="/" aria-label="回到首页">
+          <img src="/avatar.png" alt="我的头像" />
+        </a>
+        <div class="about-id">
+          <p class="micro-label">ABOUT ME // 关于我</p>
+          <h1 class="display-title">{SITE.zh}</h1>
+          <p class="about-sub">{SITE.author} · {SITE.en}</p>
+          <p class="about-tagline">
+            记录 · 思考 · 建造——像明日方舟的界面一样：克制、有序、留白。
+          </p>
+          <div class="about-links">
+            {accounts.map((a) => (
+              <a class="tag" href={a.url} target="_blank" rel="noopener">{a.name}</a>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <!-- 自我介绍 -->
+      <div class="about-bio reveal" style="--reveal-delay:80ms">
+        <p class="micro-label">BIO // 自我介绍</p>
+        <p>
+          你好，我是 <strong>{SITE.author}</strong>，这里是{SITE.zh}（{SITE.en}）。
+          一名喜欢把东西「搭出来」的人：写代码、折腾工具、收集好看的壁纸，也追番、也听歌。
+        </p>
+        <p>
+          这个博客的视觉脱胎于鹰角网络与《明日方舟》的平面设计——冰川蓝的克制配色、
+          锐利的直角与细描边、克制的动效，再加一点向优秀博客学来的小心思。
+          内容上主要记录三类东西：<strong>技术</strong>、<strong>生活</strong>与<strong>思考</strong>。
+        </p>
+      </div>
+
+      <!-- 基本信息 -->
+      <dl class="facts reveal" style="--reveal-delay:160ms">
+        <div class="fact-row">
+          <dt>站名 NAME</dt>
+          <dd>{SITE.zh} / {SITE.en}</dd>
+        </div>
+        <div class="fact-row">
+          <dt>署名 AUTHOR</dt>
+          <dd>{SITE.author}</dd>
+        </div>
+        <div class="fact-row">
+          <dt>定位 FOCUS</dt>
+          <dd>记录 · 思考 · 建造</dd>
+        </div>
+        <div class="fact-row">
+          <dt>坐标 COORDS</dt>
+          <dd>{SITE.coords}</dd>
+        </div>
+        <div class="fact-row">
+          <dt>许可 LICENSE</dt>
+          <dd>文章 CC BY-NC-SA 4.0 · 代码 MIT</dd>
+        </div>
       </dl>
+
+      <!-- 足迹 -->
+      <div class="about-accounts reveal" style="--reveal-delay:240ms">
+        <p class="micro-label">FOLLOW // 足迹</p>
+        <div class="account-grid">
+          {accounts.map((a) => (
+            <a class="card account-card" href={a.url} target="_blank" rel="noopener" data-tilt>
+              <span class="account-icon">
+                {a.icon === 'github' && (
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>
+                )}
+                {a.icon === 'gitee' && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="5" r="2.6" /><circle cx="18" cy="5" r="2.6" /><circle cx="6" cy="19" r="2.6" /><path d="M6 7.6v8.8M18 7.6a7 7 0 0 0-8 12" /></svg>
+                )}
+                {a.icon === 'bilibili' && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="8" width="17" height="11" rx="1.5" /><path d="M8 8l4-3.5L16 8" /><path d="M9 12.5v3M12 11v6M15.5 12.5v3" /></svg>
+                )}
+              </span>
+              <span class="account-meta">
+                <span class="account-name">{a.name}</span>
+                <span class="account-desc">{a.desc}</span>
+              </span>
+              <svg class="ext-icon" viewBox="0 0 640 640" fill="currentColor" aria-hidden="true"><path d="M384 64c-17.7 0-32 14.3-32 32s14.3 32 32 32h82.7L265.3 329.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L512 173.3V256c0 17.7 14.3 32 32 32s32-14.3 32-32V96c0-17.7-14.3-32-32-32zm-240 96c-44.2 0-80 35.8-80 80v256c0 44.2 35.8 80 80 80h256c44.2 0 80-35.8 80-80v-80c0-17.7-14.3-32-32-32s-32 14.3-32 32v80c0 8.8-7.2 16-16 16H144c-8.8 0-16-7.2-16-16V240c0-8.8 7.2-16 16-16h80c17.7 0 32-14.3 32-32s-14.3-32-32-32z"/></svg>
+            </a>
+          ))}
+        </div>
+      </div>
+
       <p style="margin-top: var(--sp-6);">
         <a class="tag" href="/posts/">浏览全部文章 →</a>
+        <a class="tag" style="margin-left: var(--sp-3);" href="/sponsor/">打赏支持 →</a>
+        <a class="tag" style="margin-left: var(--sp-3);" href="/guestbook/">留言板 →</a>
       </p>
     </div>
   </section>

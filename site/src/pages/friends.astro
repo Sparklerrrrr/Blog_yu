@@ -265,22 +265,55 @@ const applyTemplate = [
     }
   }
 
-  /** 复制到剪贴板：优先 Clipboard API，失败降级 execCommand */
+  /**
+   * 复制到剪贴板：优先 Clipboard API；失败或非安全上下文（http）时，
+   * 同步降级 execCommand（必须在用户手势内同步调用，否则会静默失败）。
+   * 只有真正写入成功才显示「已复制」。
+   */
   async function copyText(text: string, btn: HTMLElement) {
+    let ok = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      } catch {
+        ok = false;
+      }
+    }
+    if (!ok) {
+      ok = copyFallback(text);
+    }
+    if (ok) {
+      btn.classList.add('is-copied');
+      window.setTimeout(() => btn.classList.remove('is-copied'), 1500);
+    } else {
+      const prev = btn.title;
+      btn.title = '复制失败，请长按/选中后手动复制';
+      window.setTimeout(() => {
+        btn.title = prev;
+      }, 2000);
+    }
+  }
+
+  /** execCommand 降级方案：必须同步执行才能命中用户手势 */
+  function copyFallback(text: string): boolean {
     try {
-      await navigator.clipboard.writeText(text);
-    } catch {
       const ta = document.createElement('textarea');
       ta.value = text;
+      ta.setAttribute('readonly', '');
       ta.style.position = 'fixed';
-      ta.style.opacity = '0';
+      ta.style.top = '-9999px';
+      ta.style.left = '-9999px';
       document.body.appendChild(ta);
+      ta.focus();
       ta.select();
-      document.execCommand('copy');
+      ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy');
       ta.remove();
+      return ok;
+    } catch {
+      return false;
     }
-    btn.classList.add('is-copied');
-    window.setTimeout(() => btn.classList.remove('is-copied'), 1500);
   }
 
   function applyFriendFilter() {

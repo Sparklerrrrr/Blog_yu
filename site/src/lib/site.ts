@@ -10,9 +10,9 @@ export const SITE = {
   description: '记录 · 思考 · 建造 —— Yu 的个人博客',
   coords: '31.2304°N 121.4737°E', // 装饰坐标（上海）
   /** 站点根地址：RSS / sitemap / canonical / OpenGraph 用；上线后按实际域名修改 */
-  url: 'https://blog.sparklerrr.cn',
-  /** 联系邮箱（联系页展示；请改成你的真实邮箱） */
-  email: 'yu@sparklerrr.cn',
+  url: 'https://www.sparklerrr.cn',
+  /** 联系邮箱（联系页与友链申请区共用） */
+  email: '1020557056@qq.com',
 } as const;
 
 /** Artalk 评论系统配置 */
