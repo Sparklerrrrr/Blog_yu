@@ -1,10 +1,10 @@
 # BLOG_YU · 家玉的小站（site/）
 
-鹰角 / 明日方舟风格的 Astro 个人博客，v1.5.0。整体冰川蓝浅色主题 + 暗色冰川皮肤切换。
+鹰角 / 明日方舟风格的 Astro 个人博客，v2.0.0。整体冰川蓝浅色主题 + 暗色冰川皮肤切换。
 
 设计参考：ak.hypergryph.com（导航板块与横向过渡）、blog.myqfeng.top（导航布局、搜索面板、音乐播放器 UI）、070219.xyz（选中高亮）、deepseek.com/harness（版块透明度与 hover 发光）。
 
-设计文档在上级目录：`../style-notes.md`、`../BUILD-PLAN.md`、`../design-system.css`（草案，已落地为 `src/styles/design-system.css`）。
+设计文档在上级目录：`../style-notes.md`、`../BUILD-PLAN.md`；设计系统已落地为 `src/styles/` 下按域拆分的四个文件（tokens / layout / components / pages）。
 
 ## 运行
 
@@ -22,6 +22,7 @@ pnpm preview         # 本地预览构建产物
 - **文章** ▾ 归档 /archive/ · 分类 /categories/ · 标签 /tags/
 - **社交** ▾ 友链 /friends/ · 留言 /guestbook/
 - **我的** ▾ 动态 /dynamic/ · 相册 /gallery/ · 追番 /anime/
+- 资源 → /resources/
 - **关于** ▾ 打赏 /sponsor/ · 关于我 /about/
 - **链接** ▾ GitHub · Gitee · Bilibili（新标签打开，带外链箭头图标）
 - 右侧工具：搜索（悬浮面板）/ 亮暗切换 / 汉堡（移动端）
@@ -77,18 +78,36 @@ draft: false          # true 时不发布
 ```
 
 - **大小与 SHA256 校验值在构建时自动从磁盘计算**，无需手动维护 `size`；文件缺失或声明大小与实际不符会在构建日志里警告
-- 发布「博客源码」资源时重新打包：`cd site && zip -r ../public/resources/blog-yu-source-v<版本>.zip . -x 'node_modules/*' 'dist/*' '.git/*' 'public/music/*' 'public/gallery/*' 'public/wallpapers/*' 'public/sponsor/*' 'public/resources/*' 'public/icons/*' '.astro/*'`，然后更新 `resources.ts` 里的版本与链接
+- 发布「博客源码」资源时重新打包（zip 命令不可用时可用 Python，效果相同）：
+
+```sh
+cd site
+zip -r ../public/resources/blog-yu-source-v<版本>.zip .   -x 'node_modules/*' 'dist/*' '.git/*' 'public/music/*' 'public/gallery/*'      'public/wallpapers/*' 'public/sponsor/*' 'public/resources/*' 'public/icons/*' '.astro/*'
+# 或 Python：
+python3 - << 'PY'
+import zipfile, os
+EXCLUDE = {'node_modules','dist','.astro','.git','public/music','public/gallery',
+           'public/wallpapers','public/sponsor','public/resources','public/icons'}
+with zipfile.ZipFile('public/resources/blog-yu-source-v2.0.0.zip','w',zipfile.ZIP_DEFLATED,9) as z:
+    for root, dirs, files in os.walk('.'):
+        dirs[:] = [d for d in dirs if d not in EXCLUDE]
+        for f in files:
+            z.write(os.path.join(root,f), os.path.join(root,f).lstrip('./'))
+PY
+```
+
+  然后更新 `resources.ts` 里的版本与链接
 
 ## 定制
 
-- **换配色**：`src/styles/design-system.css` 顶部 `:root`（当前 `--accent: #3f9bc2`，选中底色 `--accent-soft: #7ec8e3`，链接 `--accent-deep: #1f7397`）；`data-skin="ark" / "hg" / "cc"` 切暗色备用皮肤
+- **换配色**：`src/styles/tokens.css` 顶部 `:root`（当前 `--accent: #3f9bc2`，选中底色 `--accent-soft: #7ec8e3`，链接 `--accent-deep: #1f7397`）；`data-skin="ark" / "hg" / "cc"` 切暗色备用皮肤
 - **暗色冰川**：导航「亮暗」按钮切换（`data-theme="dark"`，记忆在 localStorage）
 - **选中高亮**：`::selection`（`--selection-bg` / `--selection-fg`）
-- **微交互**：小卡片「令牌」反光 + 小幅 3D 倾斜（小版块随指针倾斜，表面反光带随倾斜滑动，大背景板不参与，仅精细指针）、`/` 或 `Ctrl/Cmd+K` 打开搜索、搜索面板 `↑↓/Enter` 键盘选择、统计数字滚动、Hero 视差淡出、明暗切换淡入淡出、Toast 复制反馈、Logo 点击转圈彩蛋、灯箱淡出（实现集中在 `BaseLayout.astro` 与 `design-system.css` 的「微交互增强 v3」段，全部尊重 `prefers-reduced-motion`）
+- **微交互**：小卡片「令牌」反光 + 小幅 3D 倾斜（小版块随指针倾斜，表面反光带随倾斜滑动，大背景板不参与，仅精细指针）、`/` 或 `Ctrl/Cmd+K` 打开搜索、搜索面板 `↑↓/Enter` 键盘选择、统计数字滚动、Hero 视差淡出、明暗切换淡入淡出、Toast 复制反馈、Logo 点击转圈彩蛋、灯箱淡出（实现集中在 `src/scripts/app.ts` 与 `src/styles/` 各段，全部尊重 `prefers-reduced-motion`）
 - **站点信息**：`src/lib/site.ts` 的 `SITE`（站名/署名/描述/坐标）
 - **增删分类**：`src/lib/site.ts` 的 `CATEGORIES` + `src/content.config.ts` 的 `category` 枚举 + CSS 里补 `--cat-*` 色值
 - **导航结构**：`src/components/TopNav.astro`
-- **全局交互**（下拉/搜索/主题/播放器/滚动显现）：`src/layouts/BaseLayout.astro` 的集中脚本
+- **全局交互**（下拉/搜索/主题/播放器/滚动显现）：`src/scripts/app.ts`（由 BaseLayout 引入）
 
 ## 目录结构
 
@@ -96,11 +115,13 @@ draft: false          # true 时不发布
 site/
 ├── public/                  # favicon、music/（mp3 与封面）、resources/（下载资源）
 └── src/
-    ├── pages/               # 首页 / 归档 / 分类 / 标签 / 友链 / 留言 / 动态 / 相册 / 追番 / 打赏 / 关于 / 搜索 / 文章页 / 404
-    ├── layouts/BaseLayout.astro   # 布局 + 全局交互脚本
-    ├── components/          # TopNav / Hero / ArticleCard / SectionHead / Tag / EmptyState / Placeholder / ProgressRing / Footer
+    ├── pages/               # 首页 / 归档 / 分类 / 标签 / 友链 / 留言 / 动态 / 相册 / 追番 / 资源 / 打赏 / 关于 / 搜索 / 文章页 / 404
+    ├── layouts/BaseLayout.astro   # 布局骨架 + OpenGraph
+    ├── scripts/app.ts       # 全站客户端交互（导航/搜索/主题/播放器/动效）
+    ├── components/          # TopNav / Hero / ArticleCard / SectionHead / Tag / EmptyState / AvatarParticles / Comments / ProgressRing / Footer
     ├── content.config.ts    # 文章集合 schema
     ├── content/posts/       # 文章
+    ├── data/                # friends.ts / music.ts / resources.ts（各板块唯一数据源）
     ├── lib/site.ts          # 站点信息与分类元数据
-    └── styles/design-system.css
+    └── styles/              # tokens / layout / components / pages（按域拆分）
 ```

@@ -3,12 +3,12 @@
 > 灵感来自鹰角网络与《明日方舟》平面设计的个人博客，整体冰川蓝浅色主题，基于 Astro 构建。
 > 设计参考：[明日方舟官网](https://ak.hypergryph.com/)（导航与板块过渡）、[清风博客](https://blog.myqfeng.top/)（导航布局与音乐播放器）、[070219.xyz](https://070219.xyz/)（选中高亮）、[DeepSeek Harness](https://www.deepseek.com/harness/)（版块透明度与发光）。
 
-**当前版本：v1.5.0**
+**当前版本：v2.0.0**
 
 ## ✨ 特性
 
 - **冰川蓝主题**：有色调的中性色、选中文字高亮、暗色冰川皮肤一键切换（记忆在 localStorage）
-- **顶部导航栏**（仿清风博客）：主页 / 文章▾（归档·分类·标签）/ 社交▾（友链·留言·联系）/ 我的▾（动态·相册·追番）/ 关于▾（打赏·关于我）/ 链接▾（GitHub·Gitee·Bilibili）+ 搜索 + 亮暗切换
+- **顶部导航栏**（仿清风博客）：主页 / 文章▾（归档·分类·标签）/ 社交▾（友链·留言·联系）/ 我的▾（动态·相册·追番）/ 资源 / 关于▾（打赏·关于我）/ 链接▾（GitHub·Gitee·Bilibili）+ 搜索 + 亮暗切换
 - **悬浮搜索面板**：右上角放大镜 → 磨砂玻璃面板，实时过滤标题/摘要/标签
 - **悬浮音乐播放器**（仿清风博客 UI）：旋转封面、细进度条、循环模式、音量记忆、播放列表；内存级 Audio，**切换页面音乐不断**
 - **动效**：字母入场、板块横向滑入、滚动显现、卡片 3D 倾斜、页面切换过渡、hover 发光
@@ -23,6 +23,7 @@
 - **留言板**：站点公告、Artalk 数据面板（全站/本页留言数、站点访问、最新留言时间线，运行时拉取失败自动降级）与评论框一体化
 - **联系页**：GitHub / Gitee / Bilibili 账号卡 + 邮箱一键复制 + RSS 订阅入口
 - **打赏**：支付宝 + 微信收款码打赏页，支持支付宝深链一键跳转付款、微信收款链接智能跳转（微信内直达付款 / 浏览器复制链接跳转）
+- **数据面板**：首页站点统计（文章/分类/标签/字数/运行时长）+ 站点信息 + 日历与年度热力图；资源页统计磁贴（总数/分类/总大小）
 - **资源下载**：源码/文档资源归档，构建时自动从磁盘计算大小与 SHA256 校验值，支持搜索、分类筛选、排序（筛选状态同步 URL 可分享），一键复制校验值与下载链接
 - **首页壁纸**：明日香线条壁纸（已换成冰川蓝线条）
 - **设计文档**：风格研究笔记与施工蓝图（见下方「相关文档」）
@@ -82,7 +83,7 @@ linkText: 访问官网
 
 ## 🎵 加歌
 
-把 mp3 放进 `site/public/music/`，然后在 `site/src/components/TopNav.astro` 的 `tracks` 数组加一行：
+把 mp3 放进 `site/public/music/`（封面放 `site/public/music/covers/`），然后在 `site/src/data/music.ts` 的 `PLAYLIST` 数组加一行：
 
 ```ts
 { title: '歌名', artist: '歌手', src: '/music/文件名.mp3', cover: '/music/covers/封面.jpg' },
@@ -100,7 +101,7 @@ linkText: 访问官网
 
 ## 🎨 换肤与定制
 
-- **配色**：`site/src/styles/design-system.css` 顶部 `:root`（`--accent` 等），或 `data-skin="ark" / "hg" / "cc"` 切暗色备用皮肤
+- **配色**：`site/src/styles/tokens.css` 顶部 `:root`（`--accent` 等），或 `data-skin="ark" / "hg" / "cc"` 切暗色备用皮肤
 - **站点信息**：`site/src/lib/site.ts` 的 `SITE`（站名/署名/坐标）与 `CATEGORIES`（分类）
 - **导航结构**：`site/src/components/TopNav.astro`
 
@@ -115,13 +116,16 @@ blog_yu/
 │   │   ├── content/posts/       # 文章
 │   │   ├── content/moments/     # 动态
 │   │   ├── data/friends.ts      # 友链数据（分组/标签/图标）
-│   │   ├── layouts/             # BaseLayout（含全局交互脚本 + OpenGraph）
+│   │   ├── data/music.ts        # 音乐曲库（唯一数据源）
+│   │   ├── data/resources.ts    # 下载资源（大小/SHA256 构建时自动派生）
+│   │   ├── layouts/             # BaseLayout（页面骨架 + OpenGraph）
+│   │   ├── scripts/             # app.ts（全站客户端交互：导航/搜索/主题/播放器/动效）
 │   │   ├── lib/site.ts          # 站点与分类元数据（含 Artalk 配置/邮箱）
 │   │   ├── pages/               # 首页/文章/归档/分类/标签/搜索/友链/留言/联系/动态/相册/追番/打赏/关于…
 │   │   │   ├── posts/[slug].astro  # 文章详情（目录/上下篇/相关文章）
 │   │   │   ├── tags/[tag].astro    # 标签归档
 │   │   │   └── rss.xml.ts          # RSS 订阅源
-│   │   └── styles/design-system.css
+│   │   └── styles/              # tokens / layout / components / pages（按域拆分的四段样式）
 │   ├── public/                  # favicon、音乐、封面等静态资源
 │   └── astro.config.mjs         # 端口 4322 / site / sitemap
 ├── style-notes.md               # 风格设计笔记

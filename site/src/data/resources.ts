@@ -44,9 +44,9 @@ const RAW_RESOURCES: Resource[] = [
     desc: '本站完整源码（Astro 7 + 冰川蓝设计系统），pnpm install && pnpm dev 即可运行。',
     category: 'code',
     tags: ['Astro', '源码', '博客'],
-    url: '/resources/blog-yu-source-v1.5.0.zip',
+    url: '/resources/blog-yu-source-v2.0.0.zip',
     date: '2026-08-16',
-    version: '1.5.0',
+    version: '2.0.0',
   },
   {
     name: 'BLOG_YU 风格设计笔记',
