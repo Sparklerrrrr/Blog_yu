@@ -23,7 +23,7 @@ export const ARTALK = {
   site: '家玉的博客',
 } as const;
 
-/** 分类元信息（与 design-system.css 中的 --cat-* 对应） */
+/** 分类元信息（与 styles/tokens.css 中的 --cat-* 对应） */
 export const CATEGORIES = {
   tech: { en: 'TECH', zh: '科技', color: '#2e86ab' },
   philosophy: { en: 'PHILOSOPHY', zh: '哲学', color: '#7a63b8' },

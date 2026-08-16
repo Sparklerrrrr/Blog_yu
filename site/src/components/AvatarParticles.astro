@@ -270,8 +270,8 @@
       const targetPx = Math.min(560, Math.max(340, r.height * 0.55, r.width * 0.42));
       baseScale = (targetPx / r.height) * halfView;
       group.scale.setScalar(baseScale);
-      // 云的右边界贴齐面板右边界
-      group.position.x = halfW - baseScale * 0.98;
+      // 云的右边界贴齐面板右边界，再左移约 18% 云宽
+      group.position.x = halfW - baseScale * 1.32;
       group.position.y = -0.16;
     };
     resize();
