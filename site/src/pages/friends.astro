@@ -283,12 +283,15 @@ const applyTemplate = [
     if (!ok) {
       ok = copyFallback(text);
     }
+    const showToast = (window as unknown as { showToast?: (m: string, t?: 'ok' | 'err') => void }).showToast;
     if (ok) {
       btn.classList.add('is-copied');
+      showToast?.('已复制到剪贴板', 'ok');
       window.setTimeout(() => btn.classList.remove('is-copied'), 1500);
     } else {
       const prev = btn.title;
       btn.title = '复制失败，请长按/选中后手动复制';
+      showToast?.('复制失败，请长按手动复制', 'err');
       window.setTimeout(() => {
         btn.title = prev;
       }, 2000);

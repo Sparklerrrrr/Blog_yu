@@ -69,7 +69,7 @@ const images: Wallpaper[] = [
   };
 
   const openLightbox = (index: number) => {
-    closeLightbox();
+    closeLightbox(true); // 直接移除旧遮罩，避免与新遮罩重叠
     current = index;
     const list = items();
     const item = list[current];
@@ -106,12 +106,21 @@ const images: Wallpaper[] = [
     });
   };
 
-  const closeLightbox = () => {
+  const closeLightbox = (instant = false) => {
     const box = document.getElementById('lightbox');
-    if (box) {
+    if (!box) {
+      lockScroll(false);
+      return;
+    }
+    if (instant) {
       box.remove();
       lockScroll(false);
+      return;
     }
+    if (box.classList.contains('is-closing')) return;
+    box.classList.add('is-closing'); // 淡出后移除
+    lockScroll(false);
+    box.addEventListener('animationend', () => box.remove(), { once: true });
   };
 
   const showAt = (i: number) => {

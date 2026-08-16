@@ -79,6 +79,9 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
     </main>
     <Footer />
 
+    <!-- Toast 轻提示容器（复制 / 操作反馈） -->
+    <div id="toast-host" class="toast-host" role="status" aria-live="polite"></div>
+
     <script>
       // ===== 全局交互（事件委托 + astro:page-load，页面切换后依然有效） =====
       const q = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel);
@@ -102,6 +105,22 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
       ring.classList.toggle('is-visible', window.scrollY > 100);
       ring.querySelector('.bar')?.setAttribute('stroke-dasharray', `${p.toFixed(1)} 100`);
       ring.setAttribute('aria-label', `返回顶部（已阅读 ${Math.round(p)}%）`);
+    }
+
+    // Hero 视差：滚动时内容缓速上移并淡出（首页）
+    const hero = q<HTMLElement>('.hero');
+    if (hero && !reduceMotion) {
+      const vh = window.innerHeight || 1;
+      const p = Math.min(1, y / (vh * 0.9));
+      const content = hero.querySelector<HTMLElement>('.hero-content');
+      if (content) {
+        content.style.transform = `translateY(${(y * 0.22).toFixed(1)}px)`;
+        content.style.opacity = Math.max(0, 1 - p * 1.15).toFixed(3);
+      }
+      const wm = hero.querySelector<HTMLElement>('.watermark');
+      if (wm) wm.style.transform = `translateY(${(y * 0.1).toFixed(1)}px)`;
+      const hint = hero.querySelector<HTMLElement>('.scroll-hint');
+      if (hint) hint.style.opacity = Math.max(0, 1 - p * 2.4).toFixed(3);
     }
   };
   window.addEventListener('scroll', syncScroll, { passive: true });
@@ -147,13 +166,22 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
     // 明暗主题切换（按钮可能同时存在于侧边栏与移动顶栏）
     if (t.closest('.theme-toggle')) {
       const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-      document.documentElement.dataset.theme = next;
-      try {
-        localStorage.setItem('blog-theme', next);
-      } catch {
-        /* 隐私模式下忽略 */
+      const applyTheme = () => {
+        document.documentElement.dataset.theme = next;
+        try {
+          localStorage.setItem('blog-theme', next);
+        } catch {
+          /* 隐私模式下忽略 */
+        }
+        syncThemeIcon();
+      };
+      // 支持 View Transition 的浏览器：明暗切换带淡入淡出过渡；否则直接切换
+      const d = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+      if (typeof d.startViewTransition === 'function' && !reduceMotion) {
+        d.startViewTransition(applyTheme);
+      } else {
+        applyTheme();
       }
-      syncThemeIcon();
     }
 
     // 阅读进度环：回到顶部
@@ -165,12 +193,10 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
     const searchPanel = q('#search-panel');
     if (t.closest('#search-toggle')) {
       if (searchPanel) {
-        const willOpen = !searchPanel.classList.contains('open');
-        searchPanel.classList.toggle('open', willOpen);
-        if (willOpen) {
-          const inp = q('#search-panel input');
-          inp?.focus();
-          inp?.select();
+        if (searchPanel.classList.contains('open')) {
+          searchPanel.classList.remove('open');
+        } else {
+          openSearch();
         }
       }
     } else if (searchPanel?.classList.contains('open') && !t.closest('#search-panel')) {
@@ -241,6 +267,17 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
       }
     }
 
+    // 品牌 Logo：点击转圈小彩蛋
+    if (t.closest('.nav-brand')) {
+      const logo = q('.nav-logo');
+      if (logo) {
+        logo.classList.remove('is-spin');
+        void logo.offsetWidth;
+        logo.classList.add('is-spin');
+        logo.addEventListener('animationend', () => logo.classList.remove('is-spin'), { once: true });
+      }
+    }
+
     // 板块切换（ak.hypergryph.com 式横向过渡）：点导航锚点后，
     // 重放目标板块面板的横向滑入动画，让每次切换都有横滑效果
     const anchor = t.closest('a[href*="#"]');
@@ -269,11 +306,38 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
       const show = !kw || hay.includes(kw);
       a.style.display = show ? '' : 'none';
       if (show) n += 1;
+      else a.classList.remove('is-selected');
     });
     if (empty) empty.hidden = n > 0;
   });
 
+  // ---- 搜索面板键盘辅助：可见结果 / 移动选中 / 打开并聚焦 ----
+  const visibleResults = () =>
+    Array.from(document.querySelectorAll<HTMLAnchorElement>('#search-results .search-result')).filter(
+      (a) => a.style.display !== 'none'
+    );
+  const moveSearchSel = (dir: number) => {
+    const list = visibleResults();
+    if (list.length === 0) return;
+    const idx = list.findIndex((a) => a.classList.contains('is-selected'));
+    list.forEach((a) => a.classList.remove('is-selected'));
+    const base = idx === -1 ? (dir > 0 ? -1 : 0) : idx;
+    const next = (base + dir + list.length) % list.length;
+    list[next].classList.add('is-selected');
+    list[next].scrollIntoView({ block: 'nearest' });
+  };
+  const openSearch = () => {
+    const panel = q('#search-panel');
+    if (!panel) return;
+    panel.classList.add('open');
+    const inp = q<HTMLInputElement>('#search-panel input');
+    inp?.focus();
+    inp?.select();
+  };
+
   document.addEventListener('keydown', (e) => {
+    const target = e.target as HTMLElement;
+
     if (e.key === 'Escape') {
       document.querySelectorAll('[data-dropdown].open').forEach((d) => {
         d.classList.remove('open');
@@ -282,6 +346,30 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
       q('#mobile-menu')?.setAttribute('hidden', '');
       q('#menu-toggle')?.setAttribute('aria-expanded', 'false');
       q('#search-panel')?.classList.remove('open');
+      return;
+    }
+
+    // 快捷键：/ 或 Ctrl/Cmd+K 打开并聚焦搜索（输入框内不劫持）
+    const typing = target.matches('input, textarea, select, [contenteditable="true"]');
+    if (!typing && (e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'))) {
+      e.preventDefault();
+      openSearch();
+      return;
+    }
+
+    // 搜索面板内：↑↓ 选择结果，Enter 打开
+    if (target.id === 'search-input') {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        moveSearchSel(e.key === 'ArrowDown' ? 1 : -1);
+      } else if (e.key === 'Enter') {
+        const list = visibleResults();
+        const sel = list.find((a) => a.classList.contains('is-selected')) ?? list[0];
+        if (sel) {
+          e.preventDefault();
+          sel.click();
+        }
+      }
     }
   });
 
@@ -301,6 +389,35 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
   // ---- 滚动显现（IntersectionObserver；导航到新页面后重新扫描） ----
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let io: IntersectionObserver | null = null;
+
+  // 数字滚动：元素进入视口后从 0 缓动到目标值（保留后缀与千分位格式，支持小数）
+  const animateCount = (el: HTMLElement) => {
+    if (reduceMotion) return;
+    const raw = el.textContent?.trim() ?? '';
+    const m = raw.match(/^([\d,]+(?:\.\d+)?)(.*)$/);
+    if (!m) return;
+    const target = parseFloat(m[1].replace(/,/g, ''));
+    if (!isFinite(target) || target <= 0) return;
+    const suffix = m[2];
+    const decimals = (m[1].split('.')[1] ?? '').length;
+    const useComma = m[1].includes(',');
+    const fmt = (v: number) =>
+      decimals > 0
+        ? v.toFixed(decimals)
+        : useComma
+          ? Math.round(v).toLocaleString()
+          : String(Math.round(v));
+    const t0 = performance.now();
+    const dur = 900;
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = fmt(target * eased) + suffix;
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+
   const observeReveals = () => {
     io?.disconnect();
     if (reduceMotion) {
@@ -312,13 +429,18 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
         entries.forEach((en) => {
           if (en.isIntersecting) {
             en.target.classList.add('is-in');
+            if (en.target instanceof HTMLElement && en.target.hasAttribute('data-count')) {
+              animateCount(en.target);
+            }
             io?.unobserve(en.target);
           }
         });
       },
       { threshold: 0.12, rootMargin: '0px 0px -32px 0px' }
     );
-    document.querySelectorAll('.reveal:not(.is-in), .reveal-x:not(.is-in)').forEach((el) => io?.observe(el));
+    document
+      .querySelectorAll('.reveal:not(.is-in), .reveal-x:not(.is-in), [data-count]')
+      .forEach((el) => io?.observe(el));
   };
 
   // ---- 板块滚动高亮（scrollspy，ak.hypergryph.com 的导航跟随方式） ----
@@ -347,9 +469,17 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
     });
   };
 
-  // ---- 卡片 3D 倾斜（仅鼠标/触控板等精细指针，减弱动效偏好时关闭） ----
+  // ---- 卡片 3D 倾斜（复刻 deepseek.com/harness：perspective(800px) + 双轴最多 3° +
+  //      scale(1.01)；跟随过渡 transform 0.1s ease-out，离开回正 0.4s ease-out；
+  //      仅鼠标/触控板等精细指针，减弱动效偏好时关闭）
+  //      保留本站卡片的 hover 上浮 translateY(-6px)，其余参数与 harness 一致 ----
   const canTilt =
     !reduceMotion && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  // 内联 transition 会整体覆盖 CSS 过渡，因此把卡片的描边/阴影过渡一并带上，避免 snap
+  const TILT_FAST =
+    'transform 0.1s ease-out, border-color var(--dur-1) var(--ease), border-left-width var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease)';
+  const TILT_SLOW =
+    'transform 0.4s ease-out, border-color var(--dur-1) var(--ease), border-left-width var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease)';
   const bindTilt = () => {
     if (!canTilt) return;
     document.querySelectorAll<HTMLElement>('[data-tilt]').forEach((card) => {
@@ -358,18 +488,257 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
       let raf = 0;
       card.addEventListener('pointermove', (e) => {
         const r = card.getBoundingClientRect();
-        const x = (e.clientX - r.left) / r.width - 0.5;
-        const y = (e.clientY - r.top) / r.height - 0.5;
+        if (r.width === 0 || r.height === 0) return;
+        // harness 公式：rotateX = (cy - y)/cy * 3，rotateY = (x - cx)/cx * 3
+        const rx = ((r.height / 2 - (e.clientY - r.top)) / (r.height / 2)) * 3;
+        const ry = ((e.clientX - r.left) - r.width / 2) / (r.width / 2) * 3;
         cancelAnimationFrame(raf);
         raf = requestAnimationFrame(() => {
-          card.style.transform = `translateY(-6px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg)`;
+          card.style.transition = TILT_FAST;
+          card.style.transform =
+            `translateY(-6px) perspective(800px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(1.01)`;
         });
       });
       card.addEventListener('pointerleave', () => {
         cancelAnimationFrame(raf);
+        card.style.transition = TILT_SLOW;
         card.style.transform = '';
       });
     });
+  };
+
+  // ---- 小版块「令牌」反光 + 小幅 3D 倾斜（仅精细指针 + 非减弱动效） ----
+  // 指针移动 → 小卡片像令牌一样随指针小幅倾斜（perspective(1000px)、双轴最多 2°），
+  // 表面反光带随倾斜同步滑动（--gx 驱动 background-position-x）——
+  // 反光是卡片自身的属性，不是跟随鼠标的光斑；滚动/缩放时按最新卡片位置重画
+  // 内联 transition 会整体覆盖 CSS 过渡，这里把卡片/面板用到的过渡属性全部带上，
+  // 避免悬停描边/阴影/公告收起等效果 snap
+  const REFLECT_FAST =
+    'transform 0.15s ease-out, box-shadow 0.3s var(--ease), border-color 0.3s var(--ease), border-left-width 0.3s var(--ease), background-color 0.3s var(--ease), width 0.55s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.55s cubic-bezier(0.16, 1, 0.3, 1), padding 0.55s cubic-bezier(0.16, 1, 0.3, 1), margin 0.55s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease';
+  const REFLECT_SLOW =
+    'transform 0.5s ease-out, box-shadow 0.3s var(--ease), border-color 0.3s var(--ease), border-left-width 0.3s var(--ease), background-color 0.3s var(--ease), width 0.55s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.55s cubic-bezier(0.16, 1, 0.3, 1), padding 0.55s cubic-bezier(0.16, 1, 0.3, 1), margin 0.55s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease';
+
+  const paintReflection = (
+    el: HTMLElement,
+    x: number,
+    y: number,
+    withTilt: boolean,
+    tiltX = x,
+    tiltY = y,
+    hx = x,
+    hy = y
+  ) => {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return;
+    if (el.classList.contains('spot-corners')) {
+      // 边缘漏光：指针方向映射为面板边界外约 36px 的虚拟光源，
+      // 光从对应边缘/角落漏入并向四周减弱；居中时回到面板中央只剩浅浅一点
+      const cxr = r.width / 2;
+      const cyr = r.height / 2;
+      const vx = x - r.left - cxr;
+      const vy = y - r.top - cyr;
+      const len = Math.hypot(vx, vy);
+      let mx = cxr;
+      let my = cyr;
+      let mag = 0;
+      if (len >= 1) {
+        const ux = vx / len;
+        const uy = vy / len;
+        // 光源沿中心→指针方向连续外推：len=0 时在面板中心，
+        // 越靠边越滑向边界外 36px（len=t 时到最外）——中心到边缘全程无跳变
+        const t = Math.min(cxr / Math.abs(ux || 1e-6), cyr / Math.abs(uy || 1e-6));
+        const d = (len / t) * (t + 36);
+        mx = cxr + ux * d;
+        my = cyr + uy * d;
+        mag = Math.min(1, len / Math.max(cxr, cyr));
+      }
+      // smoothstep 缓动：越接近边缘亮度爬升越缓，中间段过渡更柔
+      const magE = mag * mag * (3 - 2 * mag);
+      el.style.setProperty('--mx', `${mx.toFixed(1)}px`);
+      el.style.setProperty('--my', `${my.toFixed(1)}px`);
+      el.style.setProperty('--lx', (0.35 + 0.65 * magE).toFixed(3));
+      // 环境光晕：慢半拍的虚拟光源（hx/hy 独立投影），光在身后慢慢化开
+      const hvx = hx - r.left - cxr;
+      const hvy = hy - r.top - cyr;
+      const hlen = Math.hypot(hvx, hvy);
+      if (hlen >= 1) {
+        const hux = hvx / hlen;
+        const huy = hvy / hlen;
+        const ht = Math.min(cxr / Math.abs(hux || 1e-6), cyr / Math.abs(huy || 1e-6));
+        const hd = (hlen / ht) * (ht + 36);
+        el.style.setProperty('--mx2', `${(cxr + hux * hd).toFixed(1)}px`);
+        el.style.setProperty('--my2', `${(cyr + huy * hd).toFixed(1)}px`);
+      } else {
+        el.style.setProperty('--mx2', `${cxr}px`);
+        el.style.setProperty('--my2', `${cyr}px`);
+      }
+      // 光斑朝向跟随指针主方向：上下边主导 → 横向椭圆（沿边铺开、纵向衰减）；
+      // 左右边主导 → 纵向椭圆（沿边铺开、横向衰减）；按方向连续插值，角落自然过渡。
+      // 尺寸随板块大小自适应：沿边铺到接近整条边、向板内衰减到接近对边 ——
+      // 大板块也有完整的光渐变，小卡片保持紧凑不糊成一团
+      const nx = vx / (cxr || 1);
+      const ny = vy / (cyr || 1);
+      const axn = Math.abs(nx);
+      const ayn = Math.abs(ny);
+      const k = len >= 1 ? axn / (axn + ayn || 1) : 0;
+      const lerp = (a: number, b: number, q: number) => a + (b - a) * q;
+      const clampR = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+      const ex0 = clampR(r.width * 0.95, 260, 1000);  // 上下边：横向铺开
+      const ex1 = clampR(r.width * 0.85, 200, 1000);  // 左右边：横向衰减
+      const ey0 = clampR(r.height * 0.85, 200, 1000); // 上下边：纵向衰减
+      const ey1 = clampR(r.height * 0.95, 260, 1000); // 左右边：纵向铺开
+      el.style.setProperty('--erx', `${lerp(ex0, ex1, k).toFixed(0)}px`);
+      el.style.setProperty('--ery', `${lerp(ey0, ey1, k).toFixed(0)}px`);
+      const ax0 = clampR(r.width * 1.35, 380, 1500);  // 环境光晕同逻辑放大
+      const ax1 = clampR(r.width * 1.15, 320, 1400);
+      const ay0 = clampR(r.height * 1.15, 260, 1100);
+      const ay1 = clampR(r.height * 1.35, 320, 1300);
+      el.style.setProperty('--eax', `${lerp(ax0, ax1, k).toFixed(0)}px`);
+      el.style.setProperty('--eay', `${lerp(ay0, ay1, k).toFixed(0)}px`);
+    } else {
+      // 反光带滑动：与倾斜同向，最大 ±20% 卡片宽
+      el.style.setProperty('--gx', `${((x - r.left - r.width / 2) * 0.4).toFixed(1)}px`);
+    }
+    if (!withTilt) return;
+    // 令牌式倾斜（harness 公式，幅度收小到 2°；.card 类保留 hover 上浮）
+    // 使用轻微速度外推后的预测坐标，面板像在「迎接」指针
+    const clamp2 = (v: number) => Math.max(-2, Math.min(2, v));
+    const rx = clamp2(((r.height / 2 - (tiltY - r.top)) / (r.height / 2)) * 2);
+    const ry = clamp2(((tiltX - r.left) - r.width / 2) / (r.width / 2) * 2);
+    const lift = el.classList.contains('resource-card')
+      ? 'translateY(-4px) '
+      : el.classList.contains('card')
+        ? 'translateY(-6px) '
+        : el.classList.contains('bangumi-card')
+          ? 'translateY(-4px) '
+          : el.classList.contains('friend-card')
+            ? 'translateY(-3px) '
+            : '';
+    el.style.transition = REFLECT_FAST;
+    el.style.transform = `${lift}perspective(1000px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+  };
+  const refreshReflection = () => {
+    const el = document.querySelector<HTMLElement>('.spot-card:hover');
+    if (!el) return;
+    const x = parseFloat(el.dataset.spotX ?? '');
+    const y = parseFloat(el.dataset.spotY ?? '');
+    if (isFinite(x) && isFinite(y)) paintReflection(el, x, y, el.dataset.spotTilt === '1');
+  };
+  // 全局滚动/缩放监听只挂一次（window 标记防 HMR/重复执行累积）
+  const wSpot = window as unknown as { __spotGlowBound?: boolean };
+  if (!wSpot.__spotGlowBound) {
+    wSpot.__spotGlowBound = true;
+    window.addEventListener('scroll', refreshReflection, { passive: true });
+    window.addEventListener('resize', refreshReflection);
+  }
+
+  const bindPanelReflection = () => {
+    if (!canTilt) return;
+
+    // 绑定单个小版块：令牌反光 + 倾斜。
+    // 已带 data-tilt 的卡片（文章卡/分类块/账号卡/联系卡）保持既有 harness 倾斜，这里只驱动反光带
+    const bindOne = (el: HTMLElement) => {
+      if (el.dataset.spotBound) return;
+      el.dataset.spotBound = '1';
+      el.classList.add('spot-card');
+      const hasTilt = el.hasAttribute('data-tilt');
+      if (!hasTilt) el.dataset.spotTilt = '1';
+      let raf = 0;
+      // 边缘漏光专属：坐标做指数平滑（约 90ms 时间常数），
+      // 光斑位置/强度/朝向与面板倾斜共用同一份平滑坐标 —— 过渡连贯不跳变
+      const corners = el.classList.contains('spot-corners');
+      const sm = {
+        tx: 0, ty: 0, cx: 0, cy: 0, hx: 0, hy: 0, px: 0, py: 0, vx: 0, vy: 0,
+        last: 0, on: false, raf: 0,
+      };
+      const stepSmooth = () => {
+        const now = performance.now();
+        const dt = Math.min(64, now - sm.last || 16);
+        sm.last = now;
+        // 自适应时间常数：静止/慢速时更跟手（80ms），快速甩动时更飘逸（最长约 150ms）
+        const trail = Math.hypot(sm.tx - sm.cx, sm.ty - sm.cy);
+        const tau = 80 + Math.min(70, trail * 0.08);
+        const e = 1 - Math.exp(-dt / tau);
+        sm.cx += (sm.tx - sm.cx) * e;
+        sm.cy += (sm.ty - sm.cy) * e;
+        // 光晕：更慢的时间常数（tau+55ms），像光在身后慢慢化开
+        const eh = 1 - Math.exp(-dt / (tau + 55));
+        sm.hx += (sm.tx - sm.hx) * eh;
+        sm.hy += (sm.ty - sm.hy) * eh;
+        // 倾斜预测：按近几帧速度外推 3 帧，面板像在迎接指针
+        sm.vx = sm.cx - sm.px;
+        sm.vy = sm.cy - sm.py;
+        sm.px = sm.cx;
+        sm.py = sm.cy;
+        const predX = sm.cx + sm.vx * 3;
+        const predY = sm.cy + sm.vy * 3;
+        paintReflection(el, sm.cx, sm.cy, !hasTilt, predX, predY, sm.hx, sm.hy);
+        if (sm.on) sm.raf = requestAnimationFrame(stepSmooth);
+      };
+      el.addEventListener('pointermove', (e) => {
+        el.classList.add('is-glow'); // 悬停点亮高光带（同 harness onMouseMove）
+        el.dataset.spotX = String(e.clientX);
+        el.dataset.spotY = String(e.clientY);
+        if (corners) {
+          sm.tx = e.clientX;
+          sm.ty = e.clientY;
+          if (!sm.on) {
+            sm.on = true;
+            sm.cx = e.clientX; // 入场直接到位，避免光从远处滑进来
+            sm.cy = e.clientY;
+            sm.hx = e.clientX;
+            sm.hy = e.clientY;
+            sm.px = e.clientX;
+            sm.py = e.clientY;
+            sm.last = performance.now();
+            sm.raf = requestAnimationFrame(stepSmooth);
+          }
+        } else {
+          cancelAnimationFrame(raf);
+          raf = requestAnimationFrame(() => paintReflection(el, e.clientX, e.clientY, !hasTilt));
+        }
+      });
+      el.addEventListener('pointerleave', () => {
+        cancelAnimationFrame(raf);
+        sm.on = false;
+        cancelAnimationFrame(sm.raf);
+        el.classList.remove('is-glow'); // 离开熄灭高光带（同 harness onMouseLeave）
+        el.dataset.spotX = '';
+        el.dataset.spotY = '';
+        el.style.setProperty('--gx', '0px'); // 反光带滑回原位
+        if (!hasTilt) {
+          el.style.transition = REFLECT_SLOW;
+          el.style.transform = '';
+        }
+      });
+    };
+
+    // 小卡片/小版块：文章卡、分类块、联系卡、账号卡、翻页卡、动态卡、资源卡、
+    // 友链卡 —— 全部改用「边缘漏光」；番剧卡保留斜向反光带
+    document
+      .querySelectorAll<HTMLElement>(
+        '.article-card, .cat-block, .contact-card, .account-card, .pager-card, .moment-card, .related-item a, .bangumi-card, .resource-card, .friend-card'
+      )
+      .forEach((el) => {
+        if (!el.classList.contains('bangumi-card')) el.classList.add('spot-corners');
+        bindOne(el);
+      });
+
+    // 面板类只绑定宽度 ≤700px 的小板块（主页个人卡/公告卡/数据卡/最新文章），
+    // 大背景板不参与；小面板同样用「边缘漏光」
+    document.querySelectorAll<HTMLElement>('.panel').forEach((el) => {
+      if (el.getBoundingClientRect().width > 700) return;
+      el.classList.add('spot-corners');
+      bindOne(el);
+    });
+
+    // 留言板的 NOTICE 公告 / STATS 数据 / COMMENTS 评论三个板块：整块参与，不按宽度过滤
+    document
+      .querySelectorAll<HTMLElement>('.gb-notice, .gb-stats, .comments-panel')
+      .forEach((el) => {
+        el.classList.add('spot-corners');
+        bindOne(el);
+      });
   };
 
   // ---- 悬浮音乐播放器（内存级 Audio：不随 DOM 切换销毁，切板块音乐不断） ----
@@ -581,6 +950,35 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
     }
   };
 
+  // ---- 全局 Toast 轻提示（页面脚本通过 window.showToast(msg, type) 调用） ----
+  (window as unknown as { showToast?: (msg: string, type?: 'ok' | 'err') => void }).showToast = (
+    msg: string,
+    type: 'ok' | 'err' = 'ok'
+  ) => {
+    const host = q('#toast-host');
+    if (!host) return;
+    const t = document.createElement('div');
+    t.className = 'toast' + (type === 'err' ? ' is-err' : '');
+    if (type === 'ok') {
+      // 成功提示：画出来的动画对号 + 文本
+      t.innerHTML =
+        '<svg class="copy-check" viewBox="0 0 24 24" aria-hidden="true">' +
+        '<circle class="check-circle" cx="12" cy="12" r="10" />' +
+        '<path class="check-path" d="M7.5 12.5l3 3 6-6" />' +
+        '</svg><span class="toast-text"></span>';
+      (t.querySelector('.toast-text') as HTMLElement).textContent = msg;
+    } else {
+      t.textContent = msg;
+    }
+    host.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('is-in'));
+    window.setTimeout(() => {
+      t.classList.remove('is-in');
+      t.addEventListener('transitionend', () => t.remove(), { once: true });
+      window.setTimeout(() => t.remove(), 450); // 兜底移除
+    }, 2400);
+  };
+
   const init = () => {
     // 页面切换（ClientRouter）会覆盖 <html> 属性，这里每次导航后从 localStorage 恢复主题
     try {
@@ -593,6 +991,7 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
     syncThemeIcon();
     observeReveals();
     bindTilt();
+    bindPanelReflection();
     bindSpy();
     bindPlayer();
     // 关闭搜索面板（导航到新页面后）

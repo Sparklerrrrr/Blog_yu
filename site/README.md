@@ -1,6 +1,6 @@
 # BLOG_YU · 家玉的小站（site/）
 
-鹰角 / 明日方舟风格的 Astro 个人博客，v1.0。整体冰川蓝浅色主题 + 暗色冰川皮肤切换。
+鹰角 / 明日方舟风格的 Astro 个人博客，v1.5.0。整体冰川蓝浅色主题 + 暗色冰川皮肤切换。
 
 设计参考：ak.hypergryph.com（导航板块与横向过渡）、blog.myqfeng.top（导航布局、搜索面板、音乐播放器 UI）、070219.xyz（选中高亮）、deepseek.com/harness（版块透明度与 hover 发光）。
 
@@ -51,17 +51,40 @@ draft: false          # true 时不发布
 - 悬浮弹窗（导航栏音符按钮），UI 仿 blog.myqfeng.top：旋转封面 / 时间音量行 / 细进度条（hover 圆点）/ 控件行（循环·上首·播放·下首·列表）
 - **内存级 Audio**：站内切换页面音乐不断（除非点暂停或整页刷新）
 - 音量记忆在 localStorage；循环模式：列表 → 单曲 → 随机
-- **加歌**：mp3 放 `public/music/`（封面放 `public/music/covers/`），在 `src/components/TopNav.astro` 的 `tracks` 数组加一行：
+- **加歌**：mp3 放 `public/music/`（封面放 `public/music/covers/`），在 **`src/data/music.ts`** 的 `PLAYLIST` 数组加一行即可（唯一数据源，播放器与列表自动更新）：
 
 ```ts
 { title: '歌名', artist: '歌手', src: '/music/文件名.mp3', cover: '/music/covers/封面.jpg' },
 ```
+
+构建时会自动校验文件是否存在，缺了会在构建日志里警告。
+
+## 资源下载
+
+- 资源板块 `/resources/`：数据集中在 **`src/data/resources.ts`**（唯一数据源），页面展示统计磁贴、搜索 / 分类筛选 / 排序（筛选状态同步到 URL，可刷新、可分享）、NEW 角标与 SHA256 校验值一键复制
+- **加资源**：文件放 `public/resources/`，然后在 `src/data/resources.ts` 的 `RAW_RESOURCES` 数组加一行：
+
+```ts
+{
+  name: '资源名',
+  desc: '一句话描述',
+  category: 'code',      // code 源码 / docs 文档
+  tags: ['标签'],
+  url: '/resources/文件名.zip',
+  date: '2026-08-16',
+  version: '1.0.0',      // 可选，显示在卡片上
+},
+```
+
+- **大小与 SHA256 校验值在构建时自动从磁盘计算**，无需手动维护 `size`；文件缺失或声明大小与实际不符会在构建日志里警告
+- 发布「博客源码」资源时重新打包：`cd site && zip -r ../public/resources/blog-yu-source-v<版本>.zip . -x 'node_modules/*' 'dist/*' '.git/*' 'public/music/*' 'public/gallery/*' 'public/wallpapers/*' 'public/sponsor/*' 'public/resources/*' 'public/icons/*' '.astro/*'`，然后更新 `resources.ts` 里的版本与链接
 
 ## 定制
 
 - **换配色**：`src/styles/design-system.css` 顶部 `:root`（当前 `--accent: #3f9bc2`，选中底色 `--accent-soft: #7ec8e3`，链接 `--accent-deep: #1f7397`）；`data-skin="ark" / "hg" / "cc"` 切暗色备用皮肤
 - **暗色冰川**：导航「亮暗」按钮切换（`data-theme="dark"`，记忆在 localStorage）
 - **选中高亮**：`::selection`（`--selection-bg` / `--selection-fg`）
+- **微交互**：小卡片「令牌」反光 + 小幅 3D 倾斜（小版块随指针倾斜，表面反光带随倾斜滑动，大背景板不参与，仅精细指针）、`/` 或 `Ctrl/Cmd+K` 打开搜索、搜索面板 `↑↓/Enter` 键盘选择、统计数字滚动、Hero 视差淡出、明暗切换淡入淡出、Toast 复制反馈、Logo 点击转圈彩蛋、灯箱淡出（实现集中在 `BaseLayout.astro` 与 `design-system.css` 的「微交互增强 v3」段，全部尊重 `prefers-reduced-motion`）
 - **站点信息**：`src/lib/site.ts` 的 `SITE`（站名/署名/描述/坐标）
 - **增删分类**：`src/lib/site.ts` 的 `CATEGORIES` + `src/content.config.ts` 的 `category` 枚举 + CSS 里补 `--cat-*` 色值
 - **导航结构**：`src/components/TopNav.astro`
@@ -71,7 +94,7 @@ draft: false          # true 时不发布
 
 ```text
 site/
-├── public/                  # favicon、music/（mp3 与封面）
+├── public/                  # favicon、music/（mp3 与封面）、resources/（下载资源）
 └── src/
     ├── pages/               # 首页 / 归档 / 分类 / 标签 / 友链 / 留言 / 动态 / 相册 / 追番 / 打赏 / 关于 / 搜索 / 文章页 / 404
     ├── layouts/BaseLayout.astro   # 布局 + 全局交互脚本

@@ -149,12 +149,12 @@ const accountLinks = [
       <div class="panel reveal-x dash-card">
         <p class="micro-label">STATS // 站点统计</p>
         <ul class="stat-list">
-          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 17h7v-2H7zm0-4h10v-2H7zm0-4h10V7H7zM5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v14q0 .825-.587 1.413T19 21zm0-2h14V5H5zM5 5v14z"/></svg></span><span class="stat-name">文章</span><span class="stat-val">{posts.length}</span></li>
-          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h6l2 2h8q.825 0 1.413.588T22 8v10q0 .825-.587 1.413T20 20z"/></svg></span><span class="stat-name">分类</span><span class="stat-val">{Object.keys(CATEGORIES).length}</span></li>
-          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58s1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg></span><span class="stat-name">标签</span><span class="stat-val">{tagSet.size}</span></li>
-          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"/></svg></span><span class="stat-name">总字数</span><span class="stat-val">{totalChars.toLocaleString()}</span></li>
-          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 1H9v2h6zm-4 13h2V8h-2zm8.03-6.61 1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg></span><span class="stat-name">运行时长</span><span class="stat-val">{runDays} 天</span></li>
-          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8z"/></svg></span><span class="stat-name">最后活动</span><span class="stat-val">{lastActiveDays === null ? '—' : `${lastActiveDays} 天前`}</span></li>
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 17h7v-2H7zm0-4h10v-2H7zm0-4h10V7H7zM5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v14q0 .825-.587 1.413T19 21zm0-2h14V5H5zM5 5v14z"/></svg></span><span class="stat-name">文章</span><span class="stat-val" data-count>{posts.length}</span></li>
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h6l2 2h8q.825 0 1.413.588T22 8v10q0 .825-.587 1.413T20 20z"/></svg></span><span class="stat-name">分类</span><span class="stat-val" data-count>{Object.keys(CATEGORIES).length}</span></li>
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58s1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41s-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg></span><span class="stat-name">标签</span><span class="stat-val" data-count>{tagSet.size}</span></li>
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"/></svg></span><span class="stat-name">总字数</span><span class="stat-val" data-count>{totalChars.toLocaleString()}</span></li>
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 1H9v2h6zm-4 13h2V8h-2zm8.03-6.61 1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg></span><span class="stat-name">运行时长</span><span class="stat-val" data-count>{runDays} 天</span></li>
+          <li><span class="stat-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8z"/></svg></span><span class="stat-name">最后活动</span><span class="stat-val" data-count>{lastActiveDays === null ? '—' : `${lastActiveDays} 天前`}</span></li>
         </ul>
       </div>
 
@@ -289,8 +289,8 @@ const accountLinks = [
           音乐采用自托管方案，站内切换页面不断播。
         </p>
         <p>
-          内容上，这里主要记录三类东西：<strong>技术</strong>（写代码与折腾工具的心得）、
-          <strong>生活</strong>（日常与随手记）、<strong>思考</strong>（一些想不清楚的事）。
+          内容上，这里主要记录三类东西：<strong>科技</strong>（写代码与折腾工具的心得）、
+          <strong>哲学</strong>（一些想不清楚的事）、<strong>随想</strong>（日常与随手记）。
           所有文章均以 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> 许可发布，
           欢迎注明出处后转载。
         </p>

@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { SITE } from '../lib/site';
+import AvatarParticles from '../components/AvatarParticles.astro';
 
 const accounts = [
   {
@@ -21,73 +22,125 @@ const accounts = [
     desc: '追番列表与视频',
     icon: 'bilibili',
   },
+  {
+    name: 'QQ',
+    url: 'https://wpa.qq.com/msgrd?v=3&uin=1020557056&site=qq&menu=yes',
+    desc: '1020557056',
+    icon: 'qq',
+  },
+  {
+    name: 'QQ 邮箱',
+    url: 'mailto:1020557056@qq.com',
+    desc: '1020557056@qq.com',
+    icon: 'mail',
+  },
 ];
+
+const tags = ['C', '嵌入式', '电子电路设计', '全栈开发', '明日方舟', '科技', '哲学', '量子', '通信', '计算'];
 ---
 
 <BaseLayout title="关于我">
   <section class="about container">
     <span class="watermark" style="top: 12%; right: 6%;" aria-hidden="true">YU</span>
+    <div class="page-orbs" aria-hidden="true">
+      <span class="page-orb o1"></span>
+      <span class="page-orb o2"></span>
+      <span class="page-orb o3"></span>
+    </div>
     <div class="panel reveal-x">
+      <AvatarParticles />
       <!-- 身份头 -->
       <header class="about-head">
-        <a class="about-avatar" href="/" aria-label="回到首页">
-          <img src="/avatar.png" alt="我的头像" />
-        </a>
+        <div class="about-avatar-wrap">
+          <a class="about-avatar" href="/" aria-label="回到首页">
+            <img src="/avatar.png" alt="我的头像" />
+          </a>
+        </div>
         <div class="about-id">
           <p class="micro-label">ABOUT ME // 关于我</p>
-          <h1 class="display-title">{SITE.zh}</h1>
-          <p class="about-sub">{SITE.author} · {SITE.en}</p>
+          <h1 class="display-title">Yu</h1>
+          <p class="about-sub">桂林电子科技大学 · 信息与通信学院 · 导航工程（本科）</p>
           <p class="about-tagline">
-            记录 · 思考 · 建造——像明日方舟的界面一样：克制、有序、留白。
+            未来方向：电子 · 量子 · 通信 · 计算 —— {SITE.zh}（{SITE.en}）
           </p>
           <div class="about-links">
-            {accounts.map((a) => (
+            {accounts.slice(0, 3).map((a) => (
               <a class="tag" href={a.url} target="_blank" rel="noopener">{a.name}</a>
             ))}
           </div>
         </div>
       </header>
 
+      <!-- 座右铭 -->
+      <figure class="about-motto reveal" style="--reveal-delay:60ms">
+        <blockquote>
+          致力于实现个人的不断美好以及全人类的幸福生活。
+        </blockquote>
+        <figcaption>— MOTTO · 座右铭</figcaption>
+      </figure>
+
       <!-- 自我介绍 -->
-      <div class="about-bio reveal" style="--reveal-delay:80ms">
+      <div class="about-bio reveal" style="--reveal-delay:120ms">
         <p class="micro-label">BIO // 自我介绍</p>
         <p>
-          你好，我是 <strong>{SITE.author}</strong>，这里是{SITE.zh}（{SITE.en}）。
-          一名喜欢把东西「搭出来」的人：写代码、折腾工具、收集好看的壁纸，也追番、也听歌。
+          你好，我是 <strong>Yu</strong>，桂林电子科技大学信息与通信学院导航工程专业的本科生。
+          目前主要学习<strong>嵌入式</strong>与<strong>电子电路设计</strong>，会 C 语言，也算一个全栈开发者——
+          从焊电路板到写前端，都喜欢把东西亲手搭出来。
         </p>
         <p>
-          这个博客的视觉脱胎于鹰角网络与《明日方舟》的平面设计——冰川蓝的克制配色、
-          锐利的直角与细描边、克制的动效，再加一点向优秀博客学来的小心思。
-          内容上主要记录三类东西：<strong>技术</strong>、<strong>生活</strong>与<strong>思考</strong>。
+          未来想投身<strong>电子、量子、通信与计算</strong>的交叉地带。业余时间玩《明日方舟》，
+          对科技与哲学都感兴趣。
+        </p>
+        <p>
+          性格上，我<strong>充满好奇心</strong>，想理解这世间万物的原理，觉得世界非常有趣；
+          <strong>有理想、有热情</strong>，想用自己的方式做出积极的贡献和影响，让这个世界知道——我曾经存在过；
+          <strong>坚定求真</strong>，愿意坚定地寻求和守护这个世界的真理；也<strong>脚踏实地</strong>——
+          解释世界不是终点，改造世界才是。
         </p>
       </div>
 
+      <!-- 技能与兴趣 -->
+      <div class="about-tags reveal" style="--reveal-delay:180ms">
+        <p class="micro-label">STACK & INTERESTS // 技能与兴趣</p>
+        <div class="tag-cloud">
+          {tags.map((t, i) => (
+            <span class="tag" style={`--i:${i}`}>{t}</span>
+          ))}
+        </div>
+      </div>
+
       <!-- 基本信息 -->
-      <dl class="facts reveal" style="--reveal-delay:160ms">
-        <div class="fact-row">
-          <dt>站名 NAME</dt>
-          <dd>{SITE.zh} / {SITE.en}</dd>
-        </div>
-        <div class="fact-row">
-          <dt>署名 AUTHOR</dt>
-          <dd>{SITE.author}</dd>
-        </div>
-        <div class="fact-row">
-          <dt>定位 FOCUS</dt>
-          <dd>记录 · 思考 · 建造</dd>
-        </div>
-        <div class="fact-row">
-          <dt>坐标 COORDS</dt>
-          <dd>{SITE.coords}</dd>
-        </div>
-        <div class="fact-row">
-          <dt>许可 LICENSE</dt>
-          <dd>文章 CC BY-NC-SA 4.0 · 代码 MIT</dd>
-        </div>
-      </dl>
+      <div class="about-facts reveal" style="--reveal-delay:240ms">
+        <dl class="facts">
+          <div class="fact-row">
+            <dt>署名 AUTHOR</dt>
+            <dd>{SITE.author}</dd>
+          </div>
+          <div class="fact-row">
+            <dt>学校 SCHOOL</dt>
+            <dd>桂林电子科技大学 · 信息与通信学院</dd>
+          </div>
+          <div class="fact-row">
+            <dt>专业 MAJOR</dt>
+            <dd>导航工程（本科）</dd>
+          </div>
+          <div class="fact-row">
+            <dt>方向 FOCUS</dt>
+            <dd>电子 · 量子 · 通信 · 计算</dd>
+          </div>
+          <div class="fact-row">
+            <dt>坐标 COORDS</dt>
+            <dd>{SITE.coords}</dd>
+          </div>
+          <div class="fact-row">
+            <dt>许可 LICENSE</dt>
+            <dd>文章 CC BY-NC-SA 4.0 · 代码 MIT</dd>
+          </div>
+        </dl>
+      </div>
 
       <!-- 足迹 -->
-      <div class="about-accounts reveal" style="--reveal-delay:240ms">
+      <div class="about-accounts reveal" style="--reveal-delay:300ms">
         <p class="micro-label">FOLLOW // 足迹</p>
         <div class="account-grid">
           {accounts.map((a) => (
@@ -101,6 +154,12 @@ const accounts = [
                 )}
                 {a.icon === 'bilibili' && (
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="8" width="17" height="11" rx="1.5" /><path d="M8 8l4-3.5L16 8" /><path d="M9 12.5v3M12 11v6M15.5 12.5v3" /></svg>
+                )}
+                {a.icon === 'qq' && (
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.395 15.035a39.548 39.548 0 0 0-.803-2.264l-1.079-2.695c.001-.032.014-.562.014-.836C19.526 4.632 17.351 0 12 0S4.474 4.632 4.474 9.241c0 .274.013.804.014.836l-1.08 2.695a38.97 38.97 0 0 0-.802 2.264c-1.021 3.283-.69 4.643-.438 4.673.54.065 2.103-2.472 2.103-2.472 0 1.098.474 3.122 1.519 4.178a2.93 2.93 0 0 0-.471 1.571c0 1.544 1.306 2.013 2.98 2.013 1.673 0 2.98-.469 2.98-2.013 0-.604-.238-1.158-.567-1.625.996-.993 1.56-2.938 1.56-4.124 0 0 1.561 2.537 2.102 2.472.251-.03.582-1.39-.439-4.673zM12 1.885c2.815 0 4.668 2.223 4.668 4.982 0 .082-.002.163-.005.244-2.006-.972-4.413-1.544-4.663-1.544s-2.657.572-4.663 1.544a5.1 5.1 0 0 1-.005-.244c0-2.759 1.853-4.982 4.668-4.982z"/></svg>
+                )}
+                {a.icon === 'mail' && (
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h16q.825 0 1.413.588T22 6v12q0 .825-.587 1.413T20 20zm8-7L4 8v10h16V8zm0-2 8-5H4zm-8-3v2.075L12 14l8-4.925V8zm8 6z"/></svg>
                 )}
               </span>
               <span class="account-meta">

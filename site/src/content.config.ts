@@ -10,8 +10,8 @@ const posts = defineCollection({
     description: z.string().optional(),
     /** 发布日期（YYYY-MM-DD 即可） */
     date: z.coerce.date(),
-    /** 分类：tech 技术 / life 生活 / thoughts 思考 */
-    category: z.enum(['tech', 'life', 'thoughts']),
+    /** 分类：tech 科技 / philosophy 哲学 / thoughts 随想 */
+    category: z.enum(['tech', 'philosophy', 'thoughts']),
     /** 标签 */
     tags: z.array(z.string()).default([]),
     /** 最后更新日期（可选；比 date 晚时详情页显示「最后更新」） */

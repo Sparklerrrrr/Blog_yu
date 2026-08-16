@@ -112,12 +112,22 @@ const rendered = await Promise.all(
     figImg.src = img.src;
     figImg.alt = img.alt;
     figCap.textContent = img.alt;
+    overlay.classList.remove('is-closing');
     overlay.hidden = false;
     document.documentElement.style.overflow = 'hidden';
   };
   const closeMomentImg = () => {
-    overlay.hidden = true;
+    if (overlay.classList.contains('is-closing')) return;
+    overlay.classList.add('is-closing'); // 淡出后隐藏
     document.documentElement.style.overflow = '';
+    overlay.addEventListener(
+      'animationend',
+      () => {
+        overlay.hidden = true;
+        overlay.classList.remove('is-closing');
+      },
+      { once: true }
+    );
   };
 
   document.addEventListener('click', (e) => {

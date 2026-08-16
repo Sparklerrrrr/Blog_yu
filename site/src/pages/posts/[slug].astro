@@ -24,8 +24,11 @@ const { Content, headings } = await render(post);
 const cat = CATEGORIES[post.data.category];
 const mins = readingTime(post.body);
 
-// 目录：正文里的 h2 / h3
-const toc = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+// 目录：正文里的 h2 / h3（h2 带编号徽标，h3 圆点）
+let h2n = 0;
+const toc = headings
+  .filter((h) => h.depth >= 2 && h.depth <= 3)
+  .map((h) => ({ ...h, num: h.depth === 2 ? String(++h2n).padStart(2, '0') : null }));
 
 // 上一篇（较新）/ 下一篇（较旧）
 const posts = await getPosts();
@@ -75,37 +78,46 @@ const updated =
       {toc.length > 0 && (
         <details class="toc-inline">
           <summary>目录 CONTENTS</summary>
-          <ol class="toc-list">
+          <div class="toc-track">
             {toc.map((h) => (
-              <li class={`toc-item toc-depth-${h.depth}`}>
-                <a href={`#${h.slug}`} data-toc-link>{h.text}</a>
-              </li>
+              <a class={`toc-row${h.depth === 3 ? ' toc-sub' : ''}`} href={`#${h.slug}`} data-toc-link>
+                {h.num ? <span class="toc-badge">{h.num}</span> : <span class="toc-dot"></span>}
+                <span class="toc-text">{h.text}</span>
+              </a>
             ))}
-          </ol>
+          </div>
         </details>
       )}
 
       <div class="post-body">
-        <div class="prose">
-          <Content />
-        </div>
         {toc.length > 0 && (
           <aside class="toc-side" aria-label="文章目录">
             <nav class="toc-card">
               <p class="micro-label">CONTENTS // 目录</p>
-              <ol class="toc-list">
-                {toc.map((h) => (
-                  <li class={`toc-item toc-depth-${h.depth}`}>
-                    <a href={`#${h.slug}`} data-toc-link>{h.text}</a>
-                  </li>
-                ))}
-              </ol>
+              <div class="toc-progress" aria-hidden="true">
+                <span class="toc-progress-num">—</span>
+                <span class="toc-progress-track"><span class="toc-progress-fill"></span></span>
+              </div>
+              <div class="toc-scroll">
+                <div class="toc-track">
+                  <div class="toc-indicator" aria-hidden="true"></div>
+                  {toc.map((h) => (
+                    <a class={`toc-row${h.depth === 3 ? ' toc-sub' : ''}`} href={`#${h.slug}`} data-toc-link>
+                      {h.num ? <span class="toc-badge">{h.num}</span> : <span class="toc-dot"></span>}
+                      <span class="toc-text">{h.text}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
             </nav>
           </aside>
         )}
-      </div>
+        <div class="post-main">
+          <div class="prose">
+            <Content />
+          </div>
 
-      <footer class="post-foot">
+          <footer class="post-foot">
         <div class="tags">
           {post.data.tags.map((t) => (
             <Tag text={t} />
@@ -148,6 +160,8 @@ const updated =
           </ul>
         </aside>
       )}
+        </div>
+      </div>
     </article>
 
     <Comments pageKey={`/posts/${post.id}/`} pageTitle={post.data.title} />
@@ -157,34 +171,105 @@ const updated =
 </BaseLayout>
 
 <script>
-  // 目录滚动高亮：IntersectionObserver 标记当前阅读位置
-  const tocLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]'));
-  if (tocLinks.length) {
-    const heads = tocLinks
+  // ===== 目录引导（借鉴清风博客 SidebarTOC）=====
+  // 左侧常驻目录：滑动指示器 + 编号徽标 + 进度 + 自动跟随当前小节
+  const sideRows = Array.from(document.querySelectorAll<HTMLAnchorElement>('.toc-side .toc-row'));
+  const inlineRows = Array.from(document.querySelectorAll<HTMLAnchorElement>('.toc-inline .toc-row'));
+  const allRows = [...sideRows, ...inlineRows];
+  if (sideRows.length) {
+    const heads = sideRows
       .map((a) => document.getElementById(decodeURIComponent(a.hash.slice(1))))
       .filter((el): el is HTMLElement => Boolean(el));
-    const setActive = (id: string) => {
-      tocLinks.forEach((a) => {
-        const on = a.hash === '#' + id;
-        a.classList.toggle('is-active', on);
-        if (on) a.setAttribute('aria-current', 'true');
-        else a.removeAttribute('aria-current');
-      });
-    };
-    const spy = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting);
-        if (visible.length) {
-          visible.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-          setActive(visible[0].target.id);
-        }
-      },
-      { rootMargin: '-96px 0px -60% 0px' },
-    );
-    heads.forEach((h) => spy.observe(h));
-    // 移动端目录：点链接后收起
+    const indicator = document.querySelector<HTMLElement>('.toc-indicator');
+    const scrollBox = document.querySelector<HTMLElement>('.toc-scroll');
+    const progressNum = document.querySelector<HTMLElement>('.toc-progress-num');
+    const progressFill = document.querySelector<HTMLElement>('.toc-progress-fill');
     const inline = document.querySelector<HTMLDetailsElement>('.toc-inline');
-    tocLinks.forEach((a) => a.addEventListener('click', () => inline?.removeAttribute('open')));
+    const total = sideRows.length;
+
+    // 可见集合：所有标题都各自判定，同一时刻在屏的多个标题全部高亮（借鉴清风博客）
+    let followTimer: ReturnType<typeof setTimeout> | undefined;
+    const applyState = (vis: number[]) => {
+      const visSet = new Set(vis);
+      const current = vis.length ? vis[0] : -1; // 最靠上的可见标题 = 当前阅读位
+      const toggle = (rows: HTMLAnchorElement[]) =>
+        rows.forEach((a, k) => {
+          const on = visSet.has(k);
+          a.classList.toggle('is-visible', on);
+          if (on && k === current) a.setAttribute('aria-current', 'true');
+          else a.removeAttribute('aria-current');
+        });
+      toggle(sideRows);
+      toggle(inlineRows);
+      // 指示器覆盖「所有在屏标题」：从第一个到最后一个可见条目
+      if (indicator && vis.length) {
+        const first = sideRows[vis[0]];
+        const last = sideRows[vis[vis.length - 1]];
+        indicator.style.opacity = '1';
+        indicator.style.transform = 'translateY(' + first.offsetTop + 'px)';
+        indicator.style.height = last.offsetTop + last.offsetHeight - first.offsetTop + 'px';
+      } else if (indicator) {
+        indicator.style.opacity = '0';
+      }
+      if (progressNum) {
+        progressNum.textContent =
+          current < 0 ? '—' : String(current + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+      }
+      if (progressFill) {
+        progressFill.style.width = current < 0 ? '0%' : ((current + 1) / total) * 100 + '%';
+      }
+      // 让最靠上的可见条目保持在目录视窗内（防抖 + 平滑）
+      if (scrollBox && current >= 0) {
+        if (followTimer) clearTimeout(followTimer);
+        followTimer = setTimeout(() => {
+          const row = sideRows[current];
+          const box = scrollBox.getBoundingClientRect();
+          const r = row.getBoundingClientRect();
+          if (r.top < box.top + 10) {
+            scrollBox.scrollTo({ top: scrollBox.scrollTop + r.top - (box.top + 10), behavior: 'smooth' });
+          } else if (r.bottom > box.bottom - 10) {
+            scrollBox.scrollTo({ top: scrollBox.scrollTop + r.bottom - (box.bottom - 10), behavior: 'smooth' });
+          }
+        }, 120);
+      }
+    };
+
+    let ticking = false;
+    const compute = () => {
+      ticking = false;
+      const vis: number[] = [];
+      // 标题本身在视口内即视为「显示出来」
+      heads.forEach((h, k) => {
+        const r = h.getBoundingClientRect();
+        if (r.top < window.innerHeight && r.bottom > 0) vis.push(k);
+      });
+      // 兜底：屏内没有标题时，取离视口顶部最近的一个
+      if (vis.length === 0 && heads.length > 0) {
+        let best = 0;
+        let bestDist = Infinity;
+        heads.forEach((h, k) => {
+          const d = Math.abs(h.getBoundingClientRect().top);
+          if (d < bestDist) {
+            bestDist = d;
+            best = k;
+          }
+        });
+        vis.push(best);
+      }
+      applyState(vis);
+    };
+    const request = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(compute);
+      }
+    };
+    window.addEventListener('scroll', request, { passive: true });
+    window.addEventListener('resize', request);
+
+    // 点击目录项：移动端收起折叠框
+    allRows.forEach((a) => a.addEventListener('click', () => inline?.removeAttribute('open')));
+    compute();
   }
 
   // 标题锚点：为正文 h2/h3 追加 # 链接（悬停显示，点击更新地址栏 hash）

@@ -1,0 +1,412 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE } from '../lib/site';
+import { RESOURCES, RESOURCE_CATEGORIES, RESOURCE_STATS } from '../data/resources';
+
+const cats = Object.entries(RESOURCE_CATEGORIES);
+const allPills = [
+  { key: 'all', label: '全部' },
+  ...cats.map(([key, c]) => ({ key, label: c.zh })),
+];
+const delayFor = (i: number) => '--reveal-delay:' + (i % 3) * 60 + 'ms';
+const pageDesc =
+  '资源下载：本站源码、设计笔记与开源项目存档，附 SHA256 校验值与磁盘真实大小。';
+---
+
+<BaseLayout title="资源" description={pageDesc}>
+  <section class="container">
+    <div class="panel reveal-x">
+      <header class="page-head">
+        <p class="micro-label">RESOURCES // 资源</p>
+        <h1 class="display-title">资源下载</h1>
+        <p class="micro-label" style="margin-top: var(--sp-3);">
+          TOTAL // {RESOURCE_STATS.total} 份 · 最近更新 {RESOURCE_STATS.latestDate} · 持续更新中
+        </p>
+      </header>
+
+      <!-- 数据统计 -->
+      <div class="res-dash" role="list">
+        <div class="panel res-stat reveal-x" role="listitem">
+          <div class="res-stat-top">
+            <span class="res-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v9A1.5 1.5 0 0 1 18.5 18h-13A1.5 1.5 0 0 1 4 16.5z" /><path d="M9.5 6v3m5-3v3M4 10h16" /></svg>
+            </span>
+            <span class="micro-label">TOTAL</span>
+          </div>
+          <p class="res-stat-num" data-count>{RESOURCE_STATS.total}</p>
+          <p class="res-stat-label">资源总数</p>
+        </div>
+
+        <div class="panel res-stat reveal-x" style="--reveal-delay:60ms" role="listitem">
+          <div class="res-stat-top">
+            <span class="res-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14" /></svg>
+            </span>
+            <span class="micro-label">CODE</span>
+          </div>
+          <p class="res-stat-num" data-count>{RESOURCE_STATS.byCategory.code ?? 0}</p>
+          <p class="res-stat-label">源码资源</p>
+        </div>
+
+        <div class="panel res-stat reveal-x" style="--reveal-delay:120ms" role="listitem">
+          <div class="res-stat-top">
+            <span class="res-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" /><path d="M14 2v6h6M8.5 13l2 2 4-4" /></svg>
+            </span>
+            <span class="micro-label">DOCS</span>
+          </div>
+          <p class="res-stat-num" data-count>{RESOURCE_STATS.byCategory.docs ?? 0}</p>
+          <p class="res-stat-label">文档资源</p>
+        </div>
+
+        <div class="panel res-stat reveal-x" style="--reveal-delay:180ms" role="listitem">
+          <div class="res-stat-top">
+            <span class="res-stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5.5" rx="7.5" ry="3" /><path d="M4.5 5.5v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6" /><path d="M4.5 11.5v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6" /></svg>
+            </span>
+            <span class="micro-label">SIZE</span>
+          </div>
+          <p class="res-stat-num" data-count>{RESOURCE_STATS.totalSizeText}</p>
+          <p class="res-stat-label">资源总大小</p>
+        </div>
+      </div>
+
+      <!-- 工具行：搜索 + 排序 + 分类筛选 -->
+      <div class="resource-toolbar">
+        <div class="resource-toolbar-row">
+          <div class="friend-search resource-search">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m19.6 21-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3z"/></svg>
+            <input type="text" id="resource-search" placeholder="搜索名称 / 描述 / 标签…" autocomplete="off" />
+            <button type="button" class="resource-search-clear" id="resource-search-clear" aria-label="清空搜索" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+          <div class="resource-toolbar-side">
+            <label class="resource-sort-wrap" title="排序方式">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h8M8 18h4" /><path d="M4 8l-1.5 1.5L1 8M4 16l1.5 1.5L7 16" /></svg>
+              <select id="resource-sort" aria-label="排序方式">
+                <option value="new">最新优先</option>
+                <option value="size">大小优先</option>
+                <option value="name">名称排序</option>
+              </select>
+            </label>
+            <p class="resource-count" id="resource-count" role="status" aria-live="polite">
+              显示 {RESOURCES.length} / {RESOURCES.length} 份
+            </p>
+          </div>
+        </div>
+        <div class="friend-pills">
+          {
+            allPills.map((p) => (
+              <button type="button" class="category-pill" data-tag={p.key} data-active={p.key === 'all' ? '' : undefined}>
+                {p.label}{p.key === 'all' ? ` (${RESOURCES.length})` : ` (${RESOURCE_STATS.byCategory[p.key] ?? 0})`}
+              </button>
+            ))
+          }
+        </div>
+        <p class="resource-tip">支持关键词搜索、分类筛选与排序；点击卡片上的 SHA256 可复制完整校验值。</p>
+      </div>
+
+      <!-- 资源卡片 -->
+      <div class="resource-grid" id="resource-grid">
+        {
+          RESOURCES.map((r, i) => {
+            const cat = RESOURCE_CATEGORIES[r.category];
+            return (
+              <article
+                class="card resource-card reveal"
+                data-cat={r.category}
+                data-date={r.date}
+                data-size={String(r.sizeBytes)}
+                data-name={r.name}
+                data-hay={[r.name, r.desc, r.tags.join(' '), cat.zh, r.version ?? ''].join(' ')}
+                style={delayFor(i)}
+              >
+                <span class="resource-icon" aria-hidden="true">
+                  {r.category === 'code' ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14" /></svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" /><path d="M14 2v6h6M8.5 13l2 2 4-4" /></svg>
+                  )}
+                </span>
+                <div class="resource-body">
+                  <div class="resource-head">
+                    <p class="resource-name">{r.name}</p>
+                    {r.version && <span class="resource-version">v{r.version}</span>}
+                    {r.isNew && <span class="resource-new">NEW</span>}
+                  </div>
+                  <p class="resource-desc">{r.desc}</p>
+                  <div class="resource-tags">
+                    <span class="resource-cat">{cat.en}</span>
+                    {r.tags.map((t) => <span class="resource-tag">{t}</span>)}
+                  </div>
+                  <p class="resource-meta">{r.date}{r.sizeText ? ` · ${r.sizeText}` : ''}</p>
+                  {r.sha256 && (
+                    <div class="resource-checksum">
+                      <span class="resource-checksum-label">SHA256</span>
+                      <code class="resource-hash" title="SHA256 校验值（点击复制按钮获取完整值）">{r.sha256.slice(0, 12)}…</code>
+                      <button
+                        type="button"
+                        class="resource-copy"
+                        data-copy={r.sha256}
+                        title="复制完整 SHA256 校验值"
+                        aria-label={`复制 ${r.name} 的 SHA256 校验值`}
+                      >
+                        <svg class="copy-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2m-6 12h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/></svg>
+                        <svg class="copy-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>
+                      </button>
+                    </div>
+                  )}
+                  <div class="resource-actions">
+                    <a class="resource-btn" href={r.url} download data-name={r.name}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 18v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" /></svg>
+                      <span>下载{r.sizeText ? `（${r.sizeText}）` : ''}</span>
+                    </a>
+                    <button
+                      type="button"
+                      class="resource-link-btn"
+                      data-path={r.url}
+                      title="复制下载链接"
+                      aria-label={`复制 ${r.name} 的下载链接`}
+                    >
+                      <svg class="copy-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11.4 5.53" /><path d="M14 10a5 5 0 0 0-7.07 0L4.1 12.83a5 5 0 0 0 7.07 7.07l1.42-1.42" /></svg>
+                      <svg class="copy-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })
+        }
+      </div>
+
+      <div class="empty-state" id="resource-empty" hidden>
+        <p class="micro-label">NO RESULT</p>
+        <p class="empty-msg">没有找到相关资源</p>
+        <p class="empty-hint">换个关键词或分类试试，也可以重置筛选。</p>
+        <button type="button" class="resource-reset-btn" id="resource-reset">重置筛选</button>
+      </div>
+
+      <!-- 资源说明：文件校验 / 如何添加 / 失效反馈 -->
+      <aside class="resource-foot" aria-label="资源下载说明">
+        <div class="resource-note card">
+          <h2 class="resource-note-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3.5v5.2c0 4.6-3.2 8.6-8 9.3-4.8-.7-8-4.7-8-9.3V6.5z" /><path d="m8.8 12 2.2 2.2 4.4-4.4" /></svg>
+            文件校验
+          </h2>
+          <ul class="resource-note-list">
+            <li>每个资源附 <strong>SHA256</strong> 校验值，点击卡片上的复制按钮即可获取完整值；下载后可用 <code>sha256sum</code> 比对，确保文件完整未被篡改。</li>
+            <li>所有资源均为常规 zip 归档，<strong>无解压密码</strong>；大小取自磁盘真实值。</li>
+          </ul>
+        </div>
+        <div class="resource-note card">
+          <h2 class="resource-note-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M21 8.5v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-10l9-5.5z" /><path d="M3 8.5 12 14l9-5.5M12 14v6.5" /></svg>
+            如何添加资源
+          </h2>
+          <ul class="resource-note-list">
+            <li>把文件放进 <code>site/public/resources/</code>；</li>
+            <li>在 <code>src/data/resources.ts</code> 的列表里加一行（名称 / 描述 / 分类 / 标签 / 链接 / 日期）；</li>
+            <li>大小与 SHA256 在构建时自动计算，无需手动维护。</li>
+          </ul>
+        </div>
+        <div class="resource-note card">
+          <h2 class="resource-note-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4.5M12 16.2v.2" /></svg>
+            失效反馈
+          </h2>
+          <ul class="resource-note-list">
+            <li>若下载链接失效或文件损坏，欢迎到 <a href="/guestbook/">留言板</a> 留言，或发邮件至 <a href={`mailto:${SITE.email}`}>{SITE.email}</a>。</li>
+            <li>分享资源时推荐附上本页链接，让下载者可以核对校验值。</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  // ===== 资源筛选：搜索 + 分类 + 排序 + URL 同步（事件委托） =====
+  // ClientRouter 页面切换后脚本会重新执行：监听器只绑定一次，函数操作当前 DOM
+  type SortKey = 'new' | 'size' | 'name';
+
+  const getState = () => {
+    const q = ((document.getElementById('resource-search') as HTMLInputElement | null)?.value ?? '')
+      .trim()
+      .toLowerCase();
+    const activePill = document.querySelector('.category-pill[data-active]') as HTMLElement | null;
+    const cat = activePill?.dataset.tag ?? 'all';
+    const sel = document.getElementById('resource-sort') as HTMLSelectElement | null;
+    const sort = (sel?.value ?? 'new') as SortKey;
+    return { q, cat, sort };
+  };
+
+  /** 把当前筛选状态写进 URL（replaceState 不产生历史记录，刷新/分享可保留筛选） */
+  const syncUrl = () => {
+    const { q, cat, sort } = getState();
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    if (cat !== 'all') p.set('cat', cat);
+    if (sort !== 'new') p.set('sort', sort);
+    const qs = p.toString();
+    history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+  };
+
+  /** 排序比较器：日期倒序 / 大小倒序 / 名称按中文排序 */
+  const compareCards = (a: HTMLElement, b: HTMLElement, sort: SortKey): number => {
+    if (sort === 'size') {
+      return parseInt(b.dataset.size ?? '0', 10) - parseInt(a.dataset.size ?? '0', 10);
+    }
+    if (sort === 'name') return (a.dataset.name ?? '').localeCompare(b.dataset.name ?? '', 'zh');
+    return (b.dataset.date ?? '').localeCompare(a.dataset.date ?? '');
+  };
+
+  const applyResourceFilter = (updateUrl = true) => {
+    const { q, cat, sort } = getState();
+    const grid = document.getElementById('resource-grid');
+    if (!grid) return;
+    const cards = Array.from(grid.querySelectorAll<HTMLElement>('.resource-card'));
+    let n = 0;
+    cards.forEach((card) => {
+      const ccat = (card.dataset.cat ?? '').toLowerCase();
+      const hay = (card.dataset.hay ?? '').toLowerCase();
+      const show = (cat === 'all' || ccat === cat) && (!q || hay.includes(q));
+      card.style.display = show ? '' : 'none';
+      if (show) n += 1;
+    });
+    // 按当前排序重排（含隐藏卡片，保持顺序稳定）
+    cards.sort((a, b) => compareCards(a, b, sort));
+    cards.forEach((c) => grid.appendChild(c));
+    const count = document.getElementById('resource-count');
+    if (count) count.textContent = '显示 ' + n + ' / ' + cards.length + ' 份';
+    const empty = document.getElementById('resource-empty');
+    if (empty) empty.hidden = n > 0;
+    const clearBtn = document.getElementById('resource-search-clear');
+    if (clearBtn) clearBtn.hidden = !q;
+    if (updateUrl) syncUrl();
+  };
+
+  /** 从 URL 恢复筛选状态（页面首次加载 / 分享链接进入） */
+  const initFromUrl = () => {
+    const p = new URLSearchParams(location.search);
+    const q = p.get('q') ?? '';
+    const cat = p.get('cat') ?? 'all';
+    const sort = (p.get('sort') ?? 'new') as SortKey;
+    const input = document.getElementById('resource-search') as HTMLInputElement | null;
+    if (input && q) input.value = q;
+    document.querySelectorAll<HTMLElement>('.category-pill').forEach((pill) => {
+      if (pill.dataset.tag === cat) pill.setAttribute('data-active', '');
+      else pill.removeAttribute('data-active');
+    });
+    const sel = document.getElementById('resource-sort') as HTMLSelectElement | null;
+    if (sel && (sort === 'size' || sort === 'name' || sort === 'new')) sel.value = sort;
+    applyResourceFilter(false);
+  };
+
+  /** 复制到剪贴板：优先 Clipboard API，非安全上下文降级 execCommand（同友链页方案） */
+  async function copyText(text: string, btn: HTMLElement) {
+    let ok = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      } catch {
+        ok = false;
+      }
+    }
+    if (!ok) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        ok = document.execCommand('copy');
+        ta.remove();
+      } catch {
+        ok = false;
+      }
+    }
+    const showToast = (window as unknown as { showToast?: (m: string, t?: 'ok' | 'err') => void }).showToast;
+    if (ok) {
+      btn.classList.add('is-copied');
+      showToast?.('已复制到剪贴板', 'ok');
+      window.setTimeout(() => btn.classList.remove('is-copied'), 1600);
+    } else {
+      showToast?.('复制失败，请长按/选中后手动复制', 'err');
+    }
+  }
+
+  const handleClick = (e: Event) => {
+    const t = e.target as HTMLElement;
+
+    // 复制按钮：校验值（data-copy）/ 下载链接（data-path 拼完整地址）
+    const copyBtn = t.closest('.resource-copy, .resource-link-btn');
+    if (copyBtn) {
+      const el = copyBtn as HTMLElement;
+      const text = el.dataset.copy ?? (el.dataset.path ? location.origin + el.dataset.path : '');
+      if (text) void copyText(text, el);
+      return;
+    }
+
+    // 分类胶囊
+    const pill = t.closest('.category-pill');
+    if (pill) {
+      document.querySelectorAll('.category-pill').forEach((p) => {
+        if (p === pill) p.setAttribute('data-active', '');
+        else p.removeAttribute('data-active');
+      });
+      applyResourceFilter();
+      return;
+    }
+
+    // 清空搜索
+    if (t.closest('#resource-search-clear')) {
+      const input = document.getElementById('resource-search') as HTMLInputElement | null;
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+      applyResourceFilter();
+      return;
+    }
+
+    // 空状态里的重置按钮
+    if (t.closest('#resource-reset')) {
+      const input = document.getElementById('resource-search') as HTMLInputElement | null;
+      if (input) input.value = '';
+      document.querySelectorAll('.category-pill').forEach((p) => {
+        if (p.dataset.tag === 'all') p.setAttribute('data-active', '');
+        else p.removeAttribute('data-active');
+      });
+      const sel = document.getElementById('resource-sort') as HTMLSelectElement | null;
+      if (sel) sel.value = 'new';
+      applyResourceFilter();
+      return;
+    }
+
+    // 下载按钮：轻提示反馈（不拦截默认下载行为）
+    const dl = t.closest('.resource-btn');
+    if (dl) {
+      const name = (dl as HTMLElement).dataset.name ?? '资源';
+      (window as unknown as { showToast?: (m: string) => void }).showToast?.('开始下载：' + name);
+    }
+  };
+
+  if (!(window as unknown as { __resourcesBound?: boolean }).__resourcesBound) {
+    (window as unknown as { __resourcesBound?: boolean }).__resourcesBound = true;
+    document.addEventListener('input', (e) => {
+      if ((e.target as HTMLElement | null)?.id === 'resource-search') applyResourceFilter();
+    });
+    document.addEventListener('change', (e) => {
+      if ((e.target as HTMLElement | null)?.id === 'resource-sort') applyResourceFilter();
+    });
+    document.addEventListener('click', handleClick);
+  }
+
+  // 每次进入页面（含 ClientRouter 切换）：按 URL 恢复筛选并应用
+  initFromUrl();
+</script>

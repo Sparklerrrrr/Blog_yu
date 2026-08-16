@@ -33,7 +33,12 @@ const socials = [
     <div class="panel reveal-x">
       <header class="page-head">
         <p class="micro-label">CONTACT // 联系</p>
-        <h1 class="display-title">联系</h1>
+        <h1 class="display-title title-with-icon">
+          <span class="title-icon-box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h16q.825 0 1.413.588T22 6v12q0 .825-.587 1.413T20 20zm8-7l8-5V6l-8 5l-8-5v2z"/></svg>
+          </span>
+          联系
+        </h1>
         <p class="contact-lead">在这些地方可以找到我；有话说也可以去留言板，重要的事发邮件。</p>
       </header>
 
@@ -102,13 +107,20 @@ const socials = [
     if (!email) return;
 
     const finish = (ok: boolean) => {
+      const showToast = (window as unknown as { showToast?: (m: string, t?: 'ok' | 'err') => void }).showToast;
       if (ok) {
         btn.textContent = '已复制';
+        btn.classList.remove('is-pop');
+        void btn.offsetWidth;
+        btn.classList.add('is-pop');
+        showToast?.('邮箱已复制到剪贴板', 'ok');
         window.setTimeout(() => {
           btn.textContent = '复制';
+          btn.classList.remove('is-pop');
         }, 1600);
       } else {
         btn.textContent = '复制失败';
+        showToast?.('复制失败，请长按手动复制', 'err');
         window.setTimeout(() => {
           btn.textContent = '复制';
         }, 1600);

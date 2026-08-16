@@ -3,11 +3,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
 <BaseLayout title="打赏">
-  <section class="container">
+  <section class="container sponsor-sec">
+    <div class="page-orbs" aria-hidden="true">
+      <span class="page-orb o1"></span>
+      <span class="page-orb o2"></span>
+      <span class="page-orb o3"></span>
+    </div>
     <div class="panel reveal-x">
       <header class="page-head sponsor-head">
         <p class="micro-label">SPONSOR // 打赏</p>
         <h1 class="display-title">打赏支持</h1>
+        <span class="title-line" aria-hidden="true"></span>
         <p class="sponsor-bless">May all the beauty be blessed!</p>
       </header>
 
@@ -58,7 +64,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       </div>
 
       <p class="sponsor-thanks">
-        每一份打赏我都记在心里。感谢你的喜欢与支持 ❤
+        每一份打赏我都记在心里。感谢你的喜欢与支持 <span class="heart">❤</span>
       </p>
     </div>
   </section>
@@ -113,9 +119,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         e.preventDefault();
         const ok = await copyText(WECHAT_PAY_LINK);
         if (wechatHint) {
-          wechatHint.textContent = ok
-            ? '✅ 收款链接已复制！打开微信，粘贴到任意聊天框（如文件传输助手）发送，点击链接即可跳转付款'
-            : '复制失败，请手动复制这段文字：' + WECHAT_PAY_LINK + '，再粘贴到微信聊天框发送并点击';
+          if (ok) {
+            // 复制成功：画出来的动画对号（圆环勾边 + 对勾描画 + 弹性弹入）
+            wechatHint.innerHTML =
+              '<svg class="copy-check" viewBox="0 0 24 24" aria-hidden="true">' +
+              '<circle class="check-circle" cx="12" cy="12" r="10" />' +
+              '<path class="check-path" d="M7.5 12.5l3 3 6-6" />' +
+              '</svg> 收款链接已复制！打开微信，粘贴到任意聊天框（如文件传输助手）发送，点击链接即可跳转付款';
+          } else {
+            wechatHint.textContent =
+              '复制失败，请手动复制这段文字：' + WECHAT_PAY_LINK + '，再粘贴到微信聊天框发送并点击';
+          }
           wechatHint.classList.add('is-on');
         }
       });

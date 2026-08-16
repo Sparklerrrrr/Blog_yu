@@ -26,7 +26,7 @@ export const ARTALK = {
 /** 分类元信息（与 design-system.css 中的 --cat-* 对应） */
 export const CATEGORIES = {
   tech: { en: 'TECH', zh: '科技', color: '#2e86ab' },
-  philosophy: { en: 'PHILOSOPHY', zh: '哲学', color: '#c08a00' },
+  philosophy: { en: 'PHILOSOPHY', zh: '哲学', color: '#7a63b8' },
   thoughts: { en: 'THOUGHTS', zh: '随想', color: '#c26aa5' },
 } as const;
 

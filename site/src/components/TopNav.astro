@@ -1,5 +1,6 @@
 ---
 import { CATEGORIES, formatDate, getPosts } from '../lib/site';
+import { PLAYLIST } from '../data/music';
 
 const posts = await getPosts();
 const counts: Record<string, number> = { all: posts.length };
@@ -9,11 +10,7 @@ for (const p of posts) {
 const cats = Object.entries(CATEGORIES);
 const path = Astro.url.pathname.replace(/\/+$/, '');
 
-/** 曲库：加歌就在这个数组加一行（mp3 放 public/music/） */
-const tracks = [
-  { title: 'Taipei (Tsundere Twintails Remix)', artist: 'Tsundere Twintails', src: '/music/taipei-remix.mp3', cover: '/music/covers/taipei.jpg' },
-  { title: '春弦', artist: '塞壬唱片-MSR / 横山克', src: '/music/chunxian.mp3', cover: '/music/covers/chunxian.png' },
-];
+
 ---
 
 <header class="site-nav" id="site-nav">
@@ -21,9 +18,7 @@ const tracks = [
     <!-- 左：品牌 -->
     <a class="nav-brand" href="/" aria-label="回到首页">
       <span class="nav-logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
-          <path d="M5 19V5l14 0v14h-8v-6h-6v6z" />
-        </svg>
+        <img src="/avatar.png" alt="头像" />
       </span>
       <span class="brand-text">BLOG_YU</span>
     </a>
@@ -127,6 +122,12 @@ const tracks = [
         </div>
       </div>
 
+      <!-- 资源 -->
+      <a class="nav-item" href="/resources/" aria-current={path === '/resources' ? 'page' : undefined}>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4.5 18v2.5a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V18" /></svg>
+        <span>资源</span>
+      </a>
+
       <!-- 关于 -->
       <div class="dropdown" data-dropdown>
         <button
@@ -223,6 +224,12 @@ const tracks = [
       }
     </div>
     <p class="search-empty" id="search-empty" hidden>没有找到相关文章</p>
+    <p class="search-hint">
+      <span><kbd>/</kbd> <kbd>Ctrl K</kbd> 聚焦</span>
+      <span><kbd>↑↓</kbd> 选择</span>
+      <span><kbd>Enter</kbd> 打开</span>
+      <span><kbd>Esc</kbd> 关闭</span>
+    </p>
   </div>
 
   <!-- 移动端折叠菜单 -->
@@ -237,6 +244,7 @@ const tracks = [
     <a href="/dynamic/">动态 DYNAMIC</a>
     <a href="/gallery/">相册 GALLERY</a>
     <a href="/anime/">追番 ANIME</a>
+    <a href="/resources/">资源 RESOURCES</a>
     <a href="/sponsor/">打赏 SPONSOR</a>
     <a href="/about/">关于我 ABOUT</a>
     <a href="https://github.com/Sparklerrrrr" target="_blank" rel="noopener">GitHub</a>
@@ -245,10 +253,7 @@ const tracks = [
   </div>
 
   <!-- 播放器弹窗（仿 blog.myqfeng.top 的悬浮播放器） -->
-  <div class="music-popup" id="music-popup" data-tracks={JSON.stringify([
-    { title: 'Taipei (Tsundere Twintails Remix)', artist: 'Tsundere Twintails', src: '/music/taipei-remix.mp3' },
-    { title: '春弦', artist: '塞壬唱片-MSR / 横山克', src: '/music/chunxian.mp3' },
-  ])}>
+  <div class="music-popup" id="music-popup" data-tracks={JSON.stringify(PLAYLIST)}>
     <div class="player">
       <!-- 顶行：旋转圆形封面 + 标题（复刻 blog.myqfeng.top） -->
       <div class="player-top">
@@ -307,7 +312,7 @@ const tracks = [
       <!-- 播放列表 -->
       <div class="player-playlist" id="player-playlist" hidden>
         {
-          tracks.map((t, i) => (
+          PLAYLIST.map((t, i) => (
             <button type="button" class="playlist-item" data-index={i}>
               <span class="playlist-idx">{String(i + 1).padStart(2, '0')}</span>
               <span class="playlist-meta">
