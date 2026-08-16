@@ -21,7 +21,12 @@ const { pageKey, pageTitle } = Astro.props;
 <section class="panel reveal-x comments-panel" aria-label="评论区">
   <header class="page-head">
     <p class="micro-label">COMMENTS // 评论</p>
-    <h2 class="comments-title">评论</h2>
+    <h2 class="comments-title title-with-icon">
+      <span class="title-icon-box" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 20.6q-.2 0-.375-.075T20.3 20.3L18 18H8q-.825 0-1.412-.587T6 16v-1h11q.825 0 1.413-.587T19 13V6h1q.825 0 1.413.588T22 8v11.575q0 .45-.3.738t-.7.287m-18-5q-.4 0-.7-.287t-.3-.738V4q0-.825.588-1.412T4 2h11q.825 0 1.413.588T17 4v7q0 .825-.587 1.413T15 13H6l-2.3 2.3q-.15.15-.325.225T3 15.6"/></svg>
+      </span>
+      评论
+    </h2>
   </header>
   <div
     id="artalk-comments"
@@ -52,7 +57,7 @@ const { pageKey, pageTitle } = Astro.props;
 
       window.__artalkInst = A.init({
         el: el,
-        server: el.dataset.server,
+        server: el.dataset.server || resolveServer(),
         site: el.dataset.site,
         pageKey: el.dataset.pageKey,
         pageTitle: el.dataset.pageTitle,
@@ -83,11 +88,16 @@ const { pageKey, pageTitle } = Astro.props;
       }
     }
 
+    // 开发环境服务器地址：跟随当前访问主机（127.0.0.1 / localhost / 局域网 IP 均可）
+    function resolveServer() {
+      return 'http://' + window.location.hostname + ':23366';
+    }
+
     // 按需加载 Artalk 前端资源（CSS/JS 只注入一次，服务器域名统一走 data-server）
     function ensureAssets() {
       var el = document.getElementById('artalk-comments');
       if (!el) return;
-      var server = el.dataset.server;
+      var server = el.dataset.server || resolveServer();
 
       if (!document.getElementById('artalk-css')) {
         var l = document.createElement('link');

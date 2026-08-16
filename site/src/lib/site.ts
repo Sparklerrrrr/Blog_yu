@@ -17,17 +17,17 @@ export const SITE = {
 
 /** Artalk 评论系统配置 */
 export const ARTALK = {
-  /** 本地开发直连 23366；生产走 EdgeOne 反代域名（等 DNS 配好后自动生效） */
-  server: import.meta.env.DEV ? 'http://127.0.0.1:23366' : 'https://comment.sparklerrr.cn',
+  /** 本地开发留空（组件运行时按当前主机自动拼 http://<host>:23366）；生产走 EdgeOne 反代域名（等 DNS 配好后自动生效） */
+  server: import.meta.env.DEV ? '' : 'https://comment.sparklerrr.cn',
   /** 与服务器 ATK_SITE_DEFAULT 保持一致 */
   site: '家玉的博客',
 } as const;
 
 /** 分类元信息（与 design-system.css 中的 --cat-* 对应） */
 export const CATEGORIES = {
-  tech: { en: 'TECH', zh: '技术', color: '#2e86ab' },
-  life: { en: 'LIFE', zh: '生活', color: '#c08a00' },
-  thoughts: { en: 'THOUGHTS', zh: '思考', color: '#c26aa5' },
+  tech: { en: 'TECH', zh: '科技', color: '#2e86ab' },
+  philosophy: { en: 'PHILOSOPHY', zh: '哲学', color: '#c08a00' },
+  thoughts: { en: 'THOUGHTS', zh: '随想', color: '#c26aa5' },
 } as const;
 
 export type CategoryId = keyof typeof CATEGORIES;
