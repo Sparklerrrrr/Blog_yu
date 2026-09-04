@@ -15,6 +15,16 @@ export const SITE = {
   email: '1020557056@qq.com',
 } as const;
 
+/** 网站备案信息（中国大陆合规要求）：自动渲染于全站页脚底部 */
+export const LEGAL = {
+  /** 工信部 ICP 备案号（链接 https://beian.miit.gov.cn/）。请与备案通知上的完整文本一致；若带站点序号后缀（如 豫ICP备2026042079号-1）则一并填入 */
+  icp: '豫ICP备2026042079号',
+  /** 公安联网备案号（如 '豫公网安备41000000000000号'）。公安备案审核通过后填入；留空则页脚不显示公安备案 */
+  police: '',
+  /** 公安备案图标路径：审核通过后从 https://beian.mps.gov.cn/ 下载备案图标，放入 public/ 后修改此路径 */
+  policeBadge: '/beian.png',
+} as const;
+
 /** Artalk 评论系统配置 */
 export const ARTALK = {
   /** 本地开发留空（组件运行时按当前主机自动拼 http://<host>:23366）；生产走 EdgeOne 反代域名（等 DNS 配好后自动生效） */

@@ -1,6 +1,10 @@
 ---
-import { SITE } from '../lib/site';
+import { SITE, LEGAL } from '../lib/site';
 const year = new Date().getFullYear();
+// 公安联网备案查询链接（mps 平台按备案号检索）；无公安备案号时为 undefined，不渲染
+const policeHref = LEGAL.police
+  ? 'https://beian.mps.gov.cn/#/query/webSearch?code=' + encodeURIComponent(LEGAL.police)
+  : undefined;
 ---
 
 <footer class="site-footer">
@@ -30,5 +34,22 @@ const year = new Date().getFullYear();
     >CC BY-NC-SA 4.0</a
     >
     许可发布 · Built with Astro · {SITE.en}
+  </div>
+  <div class="container legal-row">
+    <a
+      href="https://beian.miit.gov.cn/"
+      target="_blank"
+      rel="noopener"
+      title="工信部 ICP 备案查询"
+    >
+      <img class="legal-icp-icon" src="/icp.svg" alt="ICP备案" width="16" height="16" loading="lazy" />
+      {LEGAL.icp}
+    </a>
+    {LEGAL.police && policeHref && (
+      <a href={policeHref} target="_blank" rel="noopener">
+        <img src={LEGAL.policeBadge} alt="" width="14" height="14" loading="lazy" />
+        {LEGAL.police}
+      </a>
+    )}
   </div>
 </footer>

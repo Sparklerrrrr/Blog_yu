@@ -1989,7 +1989,10 @@
   width: 100%;
   height: 100%;
   display: block;
+  opacity: 0; /* 首帧就绪后淡入，避免空白闪烁 */
+  transition: opacity 0.8s var(--ease);
 }
+.avatar-particles canvas.is-ready { opacity: 1; }
 @media (max-width: 900px) {
   .about-facts { gap: var(--sp-6); }
 }

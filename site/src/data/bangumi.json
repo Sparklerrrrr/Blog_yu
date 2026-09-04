@@ -1,11 +1,11 @@
 {
   "watching": [
     {
-      "title": "不正经的魔术讲师与禁忌教典",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/image/63292e22da25c09619f09a47d4a7efd514b936d8.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss5987",
-      "progress": "全12话",
-      "badge": "大会员"
+      "title": "JOJO的奇妙冒险 星尘远征军 埃及篇",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/f6709b76e88f50aa132d1e09e2d8de9663a09b3e.png",
+      "url": "https://www.bilibili.com/bangumi/play/ss4213",
+      "progress": "全24话",
+      "badge": "独家"
     },
     {
       "title": "明日方舟：焰烬曙明 中配版",
@@ -112,6 +112,13 @@
       "progress": "全12话"
     },
     {
+      "title": "不正经的魔术讲师与禁忌教典",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/63292e22da25c09619f09a47d4a7efd514b936d8.png",
+      "url": "https://www.bilibili.com/bangumi/play/ss5987",
+      "progress": "全12话",
+      "badge": "大会员"
+    },
+    {
       "title": "灵笼 第一季",
       "cover": "https://i0.hdslb.com/bfs/bangumi/image/cfab7e0fbdb4786ff4e885d050b7cf37f8829486.png",
       "url": "https://www.bilibili.com/bangumi/play/ss22088",
@@ -193,22 +200,16 @@
       "url": "https://www.bilibili.com/bangumi/play/ss5398",
       "progress": "全39话",
       "badge": "独家"
-    },
-    {
-      "title": "JOJO的奇妙冒險 不滅鑽石（僅限台灣地區）",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/e8a7947b73a15c16e0d25369fdaa032281688428.jpg",
-      "url": "https://www.bilibili.com/bangumi/play/ss28199",
-      "progress": "全39话"
     }
   ],
   "want": [],
   "watched": [
     {
-      "title": "不正经的魔术讲师与禁忌教典",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/image/63292e22da25c09619f09a47d4a7efd514b936d8.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss5987",
-      "progress": "全12话",
-      "badge": "大会员"
+      "title": "JOJO的奇妙冒险 星尘远征军 埃及篇",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/f6709b76e88f50aa132d1e09e2d8de9663a09b3e.png",
+      "url": "https://www.bilibili.com/bangumi/play/ss4213",
+      "progress": "全24话",
+      "badge": "独家"
     },
     {
       "title": "明日方舟：焰烬曙明 中配版",
@@ -315,6 +316,13 @@
       "progress": "全12话"
     },
     {
+      "title": "不正经的魔术讲师与禁忌教典",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/63292e22da25c09619f09a47d4a7efd514b936d8.png",
+      "url": "https://www.bilibili.com/bangumi/play/ss5987",
+      "progress": "全12话",
+      "badge": "大会员"
+    },
+    {
       "title": "灵笼 第一季",
       "cover": "https://i0.hdslb.com/bfs/bangumi/image/cfab7e0fbdb4786ff4e885d050b7cf37f8829486.png",
       "url": "https://www.bilibili.com/bangumi/play/ss22088",
@@ -396,13 +404,7 @@
       "url": "https://www.bilibili.com/bangumi/play/ss5398",
       "progress": "全39话",
       "badge": "独家"
-    },
-    {
-      "title": "JOJO的奇妙冒險 不滅鑽石（僅限台灣地區）",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/e8a7947b73a15c16e0d25369fdaa032281688428.jpg",
-      "url": "https://www.bilibili.com/bangumi/play/ss28199",
-      "progress": "全39话"
     }
   ],
-  "updatedAt": "2026-08-16T15:49:37.792Z"
+  "updatedAt": "2026-09-04T13:04:05.663Z"
 }

@@ -1,8 +1,7 @@
 ---
 // 头像粒子云：「关于」面板背景层
-// 质感复刻 Harness 鲸鱼（柔和圆点/明暗沙粒/加色发光）
-// 打散与收拢复刻 AK world（每颗粒子弹簧-阻尼物理：扫过迸散、离开弹性回弹归位）
-// 入场：散开 → 一次聚合，之后保持成形
+// 稳定性：单调时间防瞬移 / 导航时释放 WebGL 上下文 / 头像加载失败兜底 / 首帧淡入
+// 打散与收拢：弹簧-阻尼物理（鼠标扫过迸散、离开弹性回流，参考 Harness 流场衰减手感）
 ---
 
 <div class="avatar-particles" aria-hidden="true">
@@ -29,14 +28,22 @@
       return s === 'ark' || s === 'hg' || s === 'cc';
     };
 
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      alpha: true,
-      antialias: false,
-      powerPreference: 'low-power',
-    });
+    // ---------- 渲染器（无 WebGL 时静默降级） ----------
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        alpha: true,
+        antialias: false,
+        powerPreference: 'low-power',
+      });
+    } catch (err) {
+      return;
+    }
     renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    canvas.addEventListener('webglcontextlost', (e) => e.preventDefault(), false);
+    canvas.addEventListener('webglcontextrestored', () => resize(), false);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 20);
@@ -46,14 +53,12 @@
     const group = new THREE.Group();
     scene.add(group);
 
-    // ---------- 着色器（鼠标物理移到 CPU 弹簧模拟） ----------
+    // ---------- 着色器 ----------
     const VERT = /* glsl */ `
       attribute float aSeed;
       attribute float aBase;
       uniform float uTime;
       uniform float uSize;
-      uniform float uScatter; // 入场：1=散开 → 0=聚合
-      uniform float uSwirl;
       varying float vSeed;
       varying float vBase;
 
@@ -108,19 +113,9 @@
         vec3 p = position;
         float t = uTime * 0.35;
 
-        // 沙粒漂移：聚合后轻微闪烁
-        float drift = 0.024 + uScatter * 0.12;
+        float drift = 0.024;
         p.x += snoise(vec3(position.xy * 1.7 + vec2(0.0, 3.1), t + aSeed * 31.0)) * drift;
         p.y += snoise(vec3(position.xy * 1.7 + vec2(7.7, 2.2), t + aSeed * 31.0)) * drift;
-
-        // 入场：绕中心旋开 → 聚合
-        float r0 = length(position.xy);
-        float ang = atan(position.y, position.x);
-        ang += uScatter * (uSwirl * 1.5 * (0.35 + aSeed * 0.95) + uTime * 0.06 * (0.4 + aSeed));
-        float r1 = r0 + uScatter * (0.32 + aSeed * 0.55);
-        vec2 scat = vec2(cos(ang), sin(ang)) * r1;
-        p.xy = mix(p.xy, scat, uScatter);
-        p.z = mix(p.z, p.z * 0.35, uScatter * 0.6);
 
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
@@ -156,8 +151,6 @@
     const uniforms = {
       uTime: { value: 0 },
       uSize: { value: 0.075 },
-      uScatter: { value: 1 },
-      uSwirl: { value: 1 },
       uOpacity: { value: 0.85 },
       uColorBright: { value: new THREE.Color('#ffffff') },
       uColorDeep: { value: new THREE.Color('#2e58a4') },
@@ -192,72 +185,7 @@
       attributeFilter: ['data-theme', 'data-skin'],
     });
 
-    // ---------- 从头像采样粒子 ----------
-    let geo = null;
-    let BASE = new Float32Array(0);
-    let POS = new Float32Array(0);
-    let SEEDS = new Float32Array(0);
-    let VX = new Float32Array(0);
-    let VY = new Float32Array(0);
-    let DX = new Float32Array(0);
-    let DY = new Float32Array(0);
-
-    const img = new Image();
-    img.src = '/avatar.png';
-    img.addEventListener('load', () => {
-      const S = 128;
-      const off = document.createElement('canvas');
-      off.width = off.height = S;
-      const octx = off.getContext('2d');
-      octx.drawImage(img, 0, 0, S, S);
-      const id = octx.getImageData(0, 0, S, S).data;
-      const mask = new Uint8Array(S * S);
-      for (let i = 0; i < S * S; i++) {
-        const lum = 0.299 * id[i * 4] + 0.587 * id[i * 4 + 1] + 0.114 * id[i * 4 + 2];
-        mask[i] = id[i * 4 + 3] > 10 && lum < 190 ? 1 : 0;
-      }
-
-      const N = 12000;
-      BASE = new Float32Array(N * 3);
-      POS = new Float32Array(N * 3);
-      SEEDS = new Float32Array(N);
-      const BASES = new Float32Array(N);
-      VX = new Float32Array(N);
-      VY = new Float32Array(N);
-      DX = new Float32Array(N);
-      DY = new Float32Array(N);
-      let placed = 0;
-      let guard = 0;
-      while (placed < N && guard < N * 80) {
-        guard++;
-        const ix = (Math.random() * S) | 0;
-        const iy = (Math.random() * S) | 0;
-        if (!mask[iy * S + ix]) continue;
-        const jx = ix + Math.random();
-        const jy = iy + Math.random();
-        BASE[placed * 3] = POS[placed * 3] = (jx / S) * 2 - 1;
-        BASE[placed * 3 + 1] = POS[placed * 3 + 1] = 1 - (jy / S) * 2;
-        BASE[placed * 3 + 2] = POS[placed * 3 + 2] = (Math.random() - 0.5) * 0.24;
-        SEEDS[placed] = Math.random();
-        const light = 0.7 + 0.3 * ((jx / S) * 0.55 + (1 - jy / S) * 0.45);
-        BASES[placed] = Math.min(1, (0.1 + Math.pow(Math.random(), 1.4) * 0.9) * light);
-        placed++;
-      }
-
-      geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(POS, 3));
-      geo.setAttribute('aSeed', new THREE.BufferAttribute(SEEDS, 1));
-      geo.setAttribute('aBase', new THREE.BufferAttribute(BASES, 1));
-      group.add(new THREE.Points(geo, material));
-
-      if (reduced) {
-        uniforms.uScatter.value = 0;
-        renderer.render(scene, camera);
-      }
-      start();
-    });
-
-    // ---------- 尺寸与定位：右侧与面板右边界对齐 ----------
+    // ---------- 尺寸与定位 ----------
     let halfW = halfView;
     let baseScale = 0.5;
     const resize = () => {
@@ -270,7 +198,6 @@
       const targetPx = Math.min(560, Math.max(340, r.height * 0.55, r.width * 0.42));
       baseScale = (targetPx / r.height) * halfView;
       group.scale.setScalar(baseScale);
-      // 云的右边界贴齐面板右边界，再左移约 18% 云宽
       group.position.x = halfW - baseScale * 1.32;
       group.position.y = -0.16;
     };
@@ -280,7 +207,24 @@
       new ResizeObserver(resize).observe(wrap);
     }
 
-    // ---------- 鼠标：AK 式打散（弹簧物理在循环里） ----------
+    // ---------- 弹簧物理参数（Harness 流体感 + AK 弹性入口） ----------
+    const SPRING = 0.045; // 基础弹簧系数（随位移自适应，见收拢逻辑）
+    const DAMP = 0.9; // 阻尼：黏滞回流，小幅过冲
+    const MAXD = 0.32; // 最大偏离
+    const PUSH = 0.03; // 径向推力基准
+    const SWIRL = 0.02; // 切向旋流（随鼠标速度增强）
+    const INERTIA = 0.55; // 鼠标速度惯性
+    const RAD = 0.2; // 斥力场半径：线性衰减，越近越强、越远越弱
+    const RAD2 = RAD * RAD;
+    const FLOW = 0.0012; // 环境流场强度（回流路径弯曲 → 流体感）
+    let force = 0;
+
+    // 流场角度：双正弦叠加的平滑旋流，随时间缓慢演化
+    const flowAngle = (x, y, t) =>
+      Math.sin(x * 1.35 + t * 0.055 + y * 0.35) * Math.PI * 2 +
+      Math.sin(y * 1.45 - t * 0.048 + x * 0.22) * 0.9;
+
+    // ---------- 鼠标 ----------
     let hover = 0;
     let mouseX = 999;
     let mouseY = 999;
@@ -335,39 +279,131 @@
       }).observe(wrap);
     }
 
-    // ---------- 弹簧物理参数（AK 式弹性收拢） ----------
-    const SPRING = 0.1;
-    const DAMP = 0.86;
-    const MAXD = 0.24;
-    const PUSH = 0.045;
-    const SWIRL = 0.014;
-    const INERTIA = 0.5;
-    const RAD2 = 0.35 * 0.35;
-    let force = 0;
+    // ---------- 粒子数据（由头像 mask 生成） ----------
+    let geo = null;
+    let BASE = new Float32Array(0);
+    let POS = new Float32Array(0);
+    let SEEDS = new Float32Array(0);
+    let VX = new Float32Array(0);
+    let VY = new Float32Array(0);
+    let DX = new Float32Array(0);
+    let DY = new Float32Array(0);
 
-    // ---------- 一次性入场：散开 → 聚合 ----------
-    const GATHER = 3200;
-    const easeOut = (k) => 1 - Math.pow(1 - k, 3);
+    const initFromMask = (mask) => {
+      const S = 128;
+      const N = 18000;
+      BASE = new Float32Array(N * 3);
+      POS = new Float32Array(N * 3);
+      SEEDS = new Float32Array(N);
+      const BASES = new Float32Array(N);
+      VX = new Float32Array(N);
+      VY = new Float32Array(N);
+      DX = new Float32Array(N);
+      DY = new Float32Array(N);
+      let placed = 0;
+      let guard = 0;
+      while (placed < N && guard < N * 80) {
+        guard++;
+        const ix = (Math.random() * S) | 0;
+        const iy = (Math.random() * S) | 0;
+        if (!mask[iy * S + ix]) continue;
+        const jx = ix + Math.random();
+        const jy = iy + Math.random();
+        BASE[placed * 3] = POS[placed * 3] = (jx / S) * 2 - 1;
+        BASE[placed * 3 + 1] = POS[placed * 3 + 1] = 1 - (jy / S) * 2;
+        BASE[placed * 3 + 2] = POS[placed * 3 + 2] = (Math.random() - 0.5) * 0.24;
+        SEEDS[placed] = Math.random();
+        const light = 0.7 + 0.3 * ((jx / S) * 0.55 + (1 - jy / S) * 0.45);
+        BASES[placed] = Math.min(1, (0.1 + Math.pow(Math.random(), 1.4) * 0.9) * light);
+        placed++;
+      }
+      geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(POS, 3));
+      geo.setAttribute('aSeed', new THREE.BufferAttribute(SEEDS, 1));
+      geo.setAttribute('aBase', new THREE.BufferAttribute(BASES, 1));
+      group.add(new THREE.Points(geo, material));
 
+      if (!reduced) {
+        // AK 式入口：初始散开（径向扩张 + 旋涡偏角）+ 向外冲量，
+        // 之后由弹簧系统弹性收拢（过冲、振荡、按种子错落归位）
+        for (let i = 0; i < placed; i++) {
+          const bx = BASE[i * 3];
+          const by = BASE[i * 3 + 1];
+          const seed = SEEDS[i];
+          const r0 = Math.hypot(bx, by);
+          const ang = Math.atan2(by, bx) + (0.6 + seed * 2.4) * Math.PI * 0.5;
+          const rad = r0 + 0.3 + seed * 0.5;
+          const sx = Math.cos(ang) * rad;
+          const sy = Math.sin(ang) * rad;
+          DX[i] = sx - bx;
+          DY[i] = sy - by;
+          const imp = 0.025 + seed * 0.035;
+          VX[i] = (sx - bx) * imp;
+          VY[i] = (sy - by) * imp;
+          POS[i * 3] = bx + DX[i];
+          POS[i * 3 + 1] = by + DY[i];
+        }
+      }
+      if (reduced) {
+        renderer.render(scene, camera);
+      }
+      start();
+    };
+
+    const img = new Image();
+    img.src = '/avatar.png';
+    img.addEventListener('load', () => {
+      const S = 128;
+      const off = document.createElement('canvas');
+      off.width = off.height = S;
+      const octx = off.getContext('2d');
+      octx.drawImage(img, 0, 0, S, S);
+      const id = octx.getImageData(0, 0, S, S).data;
+      const mask = new Uint8Array(S * S);
+      for (let i = 0; i < S * S; i++) {
+        const lum = 0.299 * id[i * 4] + 0.587 * id[i * 4 + 1] + 0.114 * id[i * 4 + 2];
+        mask[i] = id[i * 4 + 3] > 10 && lum < 190 ? 1 : 0;
+      }
+      initFromMask(mask);
+    });
+    img.addEventListener('error', () => {
+      // 头像加载失败兜底：圆形剪影，保证效果始终可见
+      const S = 128;
+      const mask = new Uint8Array(S * S);
+      const c = S / 2;
+      const rr = S * 0.4 * S * 0.4;
+      for (let y = 0; y < S; y++) {
+        for (let x = 0; x < S; x++) {
+          const dx = x - c;
+          const dy = y - c;
+          mask[y * S + x] = dx * dx + dy * dy < rr ? 1 : 0;
+        }
+      }
+      initFromMask(mask);
+    });
+
+    // ---------- 动画（单调时间，防瞬移；入口/收拢均由弹簧物理驱动） ----------
+    let entranceT = 3.5; // 入口散开期间不限制位移（让粒子从远处飞回）
     let started = false;
     const start = () => {
       if (started || !geo) return;
       started = true;
-      const clock = new THREE.Clock();
-      let t0 = null;
-      renderer.setAnimationLoop(() => {
+      let animT = 0;
+      let lastFrame = null;
+      renderer.setAnimationLoop((frameTime) => {
         if (!visible.on) return;
-        const t = clock.getElapsedTime();
-        uniforms.uTime.value = t;
+        // 限制帧间隔：切后台/滚出视野后再回来不会时间跳变
+        if (lastFrame === null) lastFrame = frameTime;
+        const dt = Math.min(Math.max(frameTime - lastFrame, 0), 100) / 1000;
+        lastFrame = frameTime;
+        animT += dt;
+        uniforms.uTime.value = animT;
+        if (entranceT > 0) entranceT -= dt;
         if (!reduced) {
-          if (t0 === null) t0 = t;
-          const k = Math.min(1, ((t - t0) * 1000) / GATHER);
-          uniforms.uScatter.value = 1 - easeOut(k);
-
           // 鼠标力场平滑 + 惯性衰减
           force += ((hover ? 1 : 0) - force) * 0.2;
-          mVelX *= 0.9;
-          mVelY *= 0.9;
+          mVelX *= 0.93; // 惯性余波更持久（Harness 流场消散感）
+          mVelY *= 0.93;
 
           // CPU 弹簧物理：打散 + 弹性收拢
           const N = VX.length;
@@ -385,24 +421,34 @@
             const d2 = mdx * mdx + mdy * mdy;
             if (d2 < RAD2 && force > 0.001) {
               const d = Math.sqrt(d2) + 1e-4;
-              const f = Math.exp(-d2 * 40.0) * force;
+              // 线性衰减：离鼠标越近斥力越大，越远越小
+              const f = Math.max(0, 1 - d / RAD) * force;
               const seed = SEEDS[i];
               vx += (mdx / d) * f * PUSH * (0.6 + seed * 0.8);
               vy += (mdy / d) * f * PUSH * (0.6 + seed * 0.8);
-              vx += (-mdy / d) * f * SWIRL * (0.5 + seed);
-              vy += (mdx / d) * f * SWIRL * (0.5 + seed);
+              // 旋流强度随鼠标速度增强（甩越快旋涡越明显）
+              const swirlEff = SWIRL * (0.5 + Math.min(1, Math.hypot(mVelX, mVelY) * 25));
+              vx += (-mdy / d) * f * swirlEff * (0.5 + seed);
+              vy += (mdx / d) * f * swirlEff * (0.5 + seed);
               vx += mVelX * f * INERTIA;
               vy += mVelY * f * INERTIA;
             }
-            // 弹簧回到锚点
-            vx += -dx * SPRING;
-            vy += -dy * SPRING;
+            // 环境流场：粒子沿旋流漂移，回归路径弯曲 → Harness 流体感
+            const fa = flowAngle(px, py, animT + SEEDS[i] * 7.3);
+            const ff = FLOW * (0.6 + SEEDS[i] * 0.8);
+            vx += Math.cos(fa) * ff;
+            vy += Math.sin(fa) * ff;
+            // 弹簧回到锚点：位移越大弹簧越强 → 远近粒子同步收拢、一起过冲（AK 弹性聚合）
+            const ddNow = Math.hypot(dx, dy);
+            const kp = SPRING * (0.75 + SEEDS[i] * 0.5) * (1 + Math.min(1, ddNow * 0.8));
+            vx += -dx * kp;
+            vy += -dy * kp;
             vx *= DAMP;
             vy *= DAMP;
             dx += vx;
             dy += vy;
             const dd = Math.hypot(dx, dy);
-            if (dd > MAXD) {
+            if (entranceT <= 0 && dd > MAXD) {
               dx *= MAXD / dd;
               dy *= MAXD / dd;
             }
@@ -413,14 +459,24 @@
             POS[i * 3] = bx + dx;
             POS[i * 3 + 1] = by + dy;
           }
-          const posAttr = geo.getAttribute('position');
-          if (posAttr) posAttr.needsUpdate = true;
+          if (geo) geo.getAttribute('position').needsUpdate = true;
 
           // 呼吸缩放（无倾斜）
-          group.scale.setScalar(baseScale * (1 + Math.sin(t * 0.5) * 0.012));
+          group.scale.setScalar(baseScale * (1 + Math.sin(animT * 0.5) * 0.012));
         }
+        if (!canvas.classList.contains('is-ready')) canvas.classList.add('is-ready');
         renderer.render(scene, camera);
       });
     };
+
+    // ---------- 释放资源：防 WebGL 上下文耗尽（SPA 导航/离开页面） ----------
+    const dispose = () => {
+      renderer.setAnimationLoop(null);
+      renderer.dispose();
+      material.dispose();
+      if (geo) geo.dispose();
+    };
+    window.addEventListener('pagehide', dispose);
+    document.addEventListener('astro:before-preparation', dispose);
   })();
 </script>
