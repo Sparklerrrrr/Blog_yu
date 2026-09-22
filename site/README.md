@@ -1,6 +1,6 @@
 # BLOG_YU · 家玉的小站（site/）
 
-鹰角 / 明日方舟风格的 Astro 个人博客，v2.1.0。整体冰川蓝浅色主题 + 暗色冰川皮肤切换。
+鹰角 / 明日方舟风格的 Astro 个人博客，v2.2.0。整体冰川蓝浅色主题 + 暗色冰川皮肤切换。
 
 设计参考：ak.hypergryph.com（导航板块与横向过渡）、blog.myqfeng.top（导航布局、搜索面板、音乐播放器 UI）、070219.xyz（选中高亮）、deepseek.com/harness（版块透明度与 hover 发光）。
 
@@ -88,7 +88,7 @@ python3 - << 'PY'
 import zipfile, os
 EXCLUDE = {'node_modules','dist','.astro','.git','public/music','public/gallery',
            'public/wallpapers','public/sponsor','public/resources','public/icons'}
-with zipfile.ZipFile('public/resources/blog-yu-source-v2.1.0.zip','w',zipfile.ZIP_DEFLATED,9) as z:
+with zipfile.ZipFile('public/resources/blog-yu-source-v2.2.0.zip','w',zipfile.ZIP_DEFLATED,9) as z:
     for root, dirs, files in os.walk('.'):
         dirs[:] = [d for d in dirs if d not in EXCLUDE]
         for f in files:
@@ -105,7 +105,16 @@ PY
 - **选中高亮**：`::selection`（`--selection-bg` / `--selection-fg`）
 - **微交互**：小卡片「令牌」反光 + 小幅 3D 倾斜（小版块随指针倾斜，表面反光带随倾斜滑动，大背景板不参与，仅精细指针）、`/` 或 `Ctrl/Cmd+K` 打开搜索、搜索面板 `↑↓/Enter` 键盘选择、统计数字滚动、Hero 视差淡出、明暗切换淡入淡出、Toast 复制反馈、Logo 点击转圈彩蛋、灯箱淡出（实现集中在 `src/scripts/app.ts` 与 `src/styles/` 各段，全部尊重 `prefers-reduced-motion`）
 - **站点信息**：`src/lib/site.ts` 的 `SITE`（站名/署名/描述/坐标）
-- **备案信息**：`src/lib/site.ts` 的 `LEGAL`（`icp` 备案号 / `police` 公安号 / `policeBadge` 图标路径），页脚自动渲染为盾牌徽标 + 工信部链接（公安备案号留空则不显示）
+- **备案信息**：`src/lib/site.ts` 的 `LEGAL`，页脚自动渲染，字段留空即不显示：
+
+```ts
+export const LEGAL = {
+  icp: '豫ICP备2026042079号',        // 工信部备案号 → beian.miit.gov.cn
+  police: '豫公网安备41132302000299号', // 公安联网备案号（展示文本）
+  policeCode: '41132302000299',        // 公安备案编号（拼 beian.mps.gov.cn 查询链接）
+  policeBadge: '/beian.png',           // 公安备案警徽图标（官方下载，放 public/）
+} as const;
+```
 - **增删分类**：`src/lib/site.ts` 的 `CATEGORIES` + `src/content.config.ts` 的 `category` 枚举 + CSS 里补 `--cat-*` 色值
 - **导航结构**：`src/components/TopNav.astro`
 - **全局交互**（下拉/搜索/主题/播放器/滚动显现）：`src/scripts/app.ts`（由 BaseLayout 引入）

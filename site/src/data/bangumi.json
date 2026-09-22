@@ -8,6 +8,13 @@
       "badge": "独家"
     },
     {
+      "title": "三体",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/9870f898b8a39bbb8048f34317f8d78a02cc1770.png",
+      "url": "https://www.bilibili.com/bangumi/play/ss26257",
+      "progress": "全15话",
+      "badge": "出品"
+    },
+    {
       "title": "明日方舟：焰烬曙明 中配版",
       "cover": "https://i0.hdslb.com/bfs/bangumi/image/88609970c53ca8a861d57f949b6897bfa27d657e.png",
       "url": "https://www.bilibili.com/bangumi/play/ss102041",
@@ -52,13 +59,6 @@
       "url": "https://www.bilibili.com/bangumi/play/ss43057",
       "progress": "全8话",
       "badge": "独家"
-    },
-    {
-      "title": "三体",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/image/9870f898b8a39bbb8048f34317f8d78a02cc1770.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss26257",
-      "progress": "全15话",
-      "badge": "出品"
     },
     {
       "title": "辉夜大小姐想让我告白 剧场版",
@@ -212,6 +212,13 @@
       "badge": "独家"
     },
     {
+      "title": "三体",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/9870f898b8a39bbb8048f34317f8d78a02cc1770.png",
+      "url": "https://www.bilibili.com/bangumi/play/ss26257",
+      "progress": "全15话",
+      "badge": "出品"
+    },
+    {
       "title": "明日方舟：焰烬曙明 中配版",
       "cover": "https://i0.hdslb.com/bfs/bangumi/image/88609970c53ca8a861d57f949b6897bfa27d657e.png",
       "url": "https://www.bilibili.com/bangumi/play/ss102041",
@@ -256,13 +263,6 @@
       "url": "https://www.bilibili.com/bangumi/play/ss43057",
       "progress": "全8话",
       "badge": "独家"
-    },
-    {
-      "title": "三体",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/image/9870f898b8a39bbb8048f34317f8d78a02cc1770.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss26257",
-      "progress": "全15话",
-      "badge": "出品"
     },
     {
       "title": "辉夜大小姐想让我告白 剧场版",
@@ -406,5 +406,5 @@
       "badge": "独家"
     }
   ],
-  "updatedAt": "2026-09-04T13:14:25.701Z"
+  "updatedAt": "2026-09-22T11:05:22.442Z"
 }

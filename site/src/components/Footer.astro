@@ -1,9 +1,9 @@
 ---
 import { SITE, LEGAL } from '../lib/site';
 const year = new Date().getFullYear();
-// 公安联网备案查询链接（mps 平台按备案号检索）；无公安备案号时为 undefined，不渲染
-const policeHref = LEGAL.police
-  ? 'https://beian.mps.gov.cn/#/query/webSearch?code=' + encodeURIComponent(LEGAL.police)
+// 公安联网备案查询链接：官方代码片段格式 https://beian.mps.gov.cn/#/query/webSearch?code=<备案编号>
+const policeHref = LEGAL.policeCode
+  ? 'https://beian.mps.gov.cn/#/query/webSearch?code=' + LEGAL.policeCode
   : undefined;
 ---
 
@@ -46,8 +46,15 @@ const policeHref = LEGAL.police
       {LEGAL.icp}
     </a>
     {LEGAL.police && policeHref && (
-      <a href={policeHref} target="_blank" rel="noopener">
-        <img src={LEGAL.policeBadge} alt="" width="14" height="14" loading="lazy" />
+      <a href={policeHref} target="_blank" rel="noreferrer" title="公安联网备案查询">
+        <img
+          class="legal-police-icon"
+          src={LEGAL.policeBadge}
+          alt="公安备案图标"
+          width="16"
+          height="16"
+          loading="lazy"
+        />
         {LEGAL.police}
       </a>
     )}
