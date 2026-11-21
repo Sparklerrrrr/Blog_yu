@@ -13,6 +13,7 @@
 - **悬浮音乐播放器**（仿清风博客 UI）：旋转封面、细进度条、循环模式、音量记忆、播放列表；内存级 Audio，**切换页面音乐不断**
 - **动效**：字母入场、板块横向滑入、滚动显现、卡片 3D 倾斜、页面切换过渡、hover 发光
 - **内容系统**：Markdown 写作，分类（科技/哲学/随想）+ 标签；独立标签归档页、按年份分组的归档时间线、置顶与最后更新时间
+- **文章档案终端**（文章页顶部）：三维玻璃档案阵列，每列一个分类、每份档案一篇文章；方向键 / 拖动切换，回车抽出档案，对角线解密后右侧展示摘要 · 目录 · 相关文章，可直达正文；配色跟随冰川蓝明暗主题，滚出视口自动暂停、帧率不足自动降画质，窄屏或不支持 WebGL2 时自动只显示列表。三维引擎与模型移植自 [RhineLabUI](https://github.com/LBEILC/RhineLabUI)（MIT，作者 LBEILC），已去除原作标识，详见 `site/src/archive/NOTICE.md`
 - **文章列表页**：分类 / 标签 / 关键词组合过滤（URL 参数可分享），卡片显示分类色条与阅读时长
 - **文章详情页**：左侧常驻目录引导（编号徽标 + 滑动指示器 + 进度 + 自动跟随，窄屏折叠）、上一篇/下一篇、相关文章推荐、标题锚点链接、阅读时长
 - **合规页脚**：底部居中展示工信部 ICP 备案徽标（蓝色盾牌图标 + 备案号 → beian.miit.gov.cn，仿 blog.cuteleaf.cn）与公安联网备案（官方警徽图标 + 备案号 → beian.mps.gov.cn 按编号查询）；备案信息集中在 `site/src/lib/site.ts` 的 `LEGAL`（`icp` / `police` / `policeCode` / `policeBadge`），留空则自动不渲染
@@ -145,4 +146,4 @@ blog_yu/
 
 ## 📄 许可证
 
-代码 MIT；文章以 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh) 许可发布。
+代码 MIT（文章档案终端的三维引擎与模型来自 RhineLabUI，同为 MIT，版权声明见 `site/src/archive/NOTICE.md`）；文章以 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh) 许可发布。

@@ -1,0 +1,190 @@
+---
+/**
+ * 文章档案终端：/posts/ 顶部的三维档案阵列（引擎移植自 RhineLabUI，见 src/archive/NOTICE.md）。
+ * 窄屏 / 不支持 WebGL2 / 禁用 JS 时整块隐藏，页面照常显示下方的列表视图。
+ */
+import { render } from 'astro:content';
+import { CATEGORIES, formatDate, getPosts, readingTime, type Post } from '../lib/site';
+import type { ArchiveRecord } from '../archive/engine/data';
+import '../archive/terminal.css';
+
+const posts = await getPosts();
+
+// 编号按发布时间从旧到新：新文章永远排在后面，旧文章的编号不会变
+const byAge = [...posts].sort((a, b) => a.data.date.valueOf() - b.data.date.valueOf());
+const numberOf = new Map(byAge.map((p, i) => [p.id, i + 1]));
+const indexOf = new Map(posts.map((p, i) => [p.id, i]));
+
+/** 字数：中文按字、英文按词 */
+const countWords = (body = '') => {
+  const text = body.replace(/```[\s\S]*?```/g, ' ').replace(/[#>*_`\[\]()!-]/g, ' ');
+  return (text.match(/[一-鿿]/g) || []).length + (text.match(/[A-Za-z0-9]+/g) || []).length;
+};
+/** 没写 description 时，从正文开头截一段 */
+const excerpt = (post: Post) => {
+  if (post.data.description) return post.data.description;
+  const plain = (post.body ?? '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/^#+.*$/gm, '')
+    .replace(/[#>*_`\[\]]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return plain.length > 140 ? plain.slice(0, 140) + '…' : plain || '这篇文章还没有摘要。';
+};
+
+const records: ArchiveRecord[] = await Promise.all(
+  posts.map(async (post) => {
+    const { headings } = await render(post);
+    const cat = CATEGORIES[post.data.category];
+    const no = numberOf.get(post.id)!;
+    const related = posts
+      .filter((p) => p.id !== post.id)
+      .map((p) => ({ p, shared: p.data.tags.filter((t) => post.data.tags.includes(t)).length }))
+      .filter((x) => x.shared > 0)
+      .sort((a, b) => b.shared - a.shared || b.p.data.date.valueOf() - a.p.data.date.valueOf())
+      .slice(0, 4)
+      .map((x) => indexOf.get(x.p.id)!);
+    const updated =
+      post.data.updated && post.data.updated.valueOf() > post.data.date.valueOf() ? formatDate(post.data.updated) : '';
+    return {
+      id: 'Y-' + String(no).padStart(3, '0'),
+      no,
+      slug: post.id,
+      url: `/posts/${post.id}/`,
+      title: post.data.title,
+      abstract: excerpt(post),
+      category: post.data.category,
+      categoryZh: cat.zh,
+      categoryEn: cat.en,
+      date: formatDate(post.data.date),
+      updated,
+      minutes: readingTime(post.body),
+      words: countWords(post.body),
+      tags: post.data.tags,
+      pin: post.data.pin,
+      headings: headings.filter((h) => h.depth === 2 || h.depth === 3).map(({ depth, text, slug }) => ({ depth, text, slug })),
+      related,
+    };
+  }),
+);
+const columns = Object.keys(CATEGORIES).filter((id) => posts.some((p) => p.data.category === id));
+// </script> 之类的字符串不能出现在内联 JSON 里
+const json = JSON.stringify({ records, columns }).replace(/</g, '\\u003c');
+---
+
+{
+  posts.length > 0 && (
+    <section
+      class="archive-terminal"
+      data-state="loading"
+      data-model="/archive/archive-cassette.glb"
+      tabindex="0"
+      aria-label="三维文章档案终端"
+      aria-describedby="at-help"
+    >
+      <script type="application/json" data-archive-data set:html={json} />
+      <div class="at-stage" data-layout="desktop" data-mode="loading">
+        <div class="at-scene" />
+        <div class="at-atmosphere" aria-hidden="true" />
+        <svg class="at-marks" aria-hidden="true">
+          <path data-inspection="lines" />
+          <g data-inspection="corners" />
+          <circle data-inspection="point" r="1.8" />
+        </svg>
+
+        <header class="at-brand" aria-hidden="true">
+          <h2>BLOG_YU</h2>
+          <div>ARTICLE ARCHIVE</div>
+          <p>TERMINAL <b>// 文章</b></p>
+        </header>
+        <nav class="at-sysnav" aria-label="终端操作">
+          <button type="button" data-action="list">列表视图 <span>↓</span></button>
+          <button type="button" class="at-quality" data-action="quality" title="切换三维画质（会记住你的选择）">画质 HQ</button>
+        </nav>
+
+        <section class="at-archive-ui" aria-label="选择文章">
+          <div class="at-callout">
+            <div class="at-eyebrow">ARTICLE ARCHIVE <span>／</span><span class="at-eyebrow-cat" /></div>
+            <button type="button" class="at-file-title" data-action="open">
+              FILE NUMBER: <span class="at-file-id" /><span class="at-file-open">↗</span>
+            </button>
+            <div class="at-callout-rule"><i /></div>
+            <div class="at-summary"><span class="at-file-name" /><span class="at-file-meta" /></div>
+            <button type="button" class="at-access" data-action="open">ACCESS FILE <span>→</span></button>
+          </div>
+          <div class="at-hover" hidden />
+          <div class="at-counter">
+            <span>ARCHIVE / SELECT</span>
+            <div><b class="at-count-now">01</b><i>/</i><span class="at-count-total">01</span></div>
+          </div>
+          <div class="at-filenav">
+            <button type="button" data-action="prev" aria-label="上一篇">↑</button>
+            <div class="at-ticks" />
+            <button type="button" data-action="next" aria-label="下一篇">↓</button>
+          </div>
+          <div class="at-colnav">
+            <button type="button" data-action="col-prev" aria-label="上一个分类">←</button>
+            <div><span>COLUMN <span class="at-col-index" /></span><strong class="at-col-name" /></div>
+            <button type="button" data-action="col-next" aria-label="下一个分类">→</button>
+          </div>
+          <p class="at-hint" id="at-help">← → 切换分类 ／ ↑ ↓ 前后文章 ／ ENTER 读取 ／ 拖动阵列浏览</p>
+        </section>
+
+        <section class="at-detail-ui" aria-label="文章档案" inert>
+          <button type="button" class="at-back" data-action="back">← <span>ARCHIVE OVERVIEW</span><small>ESC</small></button>
+          <div class="at-object">
+            <span class="at-object-no">NO.001</span>
+            <div class="at-object-cat" />
+            <small>DRAG TO INSPECT ↔</small>
+          </div>
+          <article class="at-detail-content" tabindex="-1" />
+        </section>
+
+        <footer class="at-footer" aria-hidden="true">
+          <span><i />ARCHIVE ONLINE</span>
+          <span>{posts.length} FILES // {columns.length} COLUMNS</span>
+        </footer>
+
+        <div class="at-loading" role="status">
+          <span class="at-loading-text">CONNECTING TO ARCHIVE</span>
+          <i />
+          <p class="at-error">
+            三维档案没能载入（浏览器可能关闭了硬件加速）。
+            <br />
+            <button type="button" data-action="list">改用列表视图 ↓</button>
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+<script>
+  let dispose: (() => void) | undefined;
+
+  const boot = async () => {
+    const root = document.querySelector<HTMLElement>('.archive-terminal');
+    if (!root || root.dataset.mounted) return;
+    root.dataset.mounted = 'true';
+    try {
+      // 三维部分单独分包：列表视图先渲染出来，不被 three.js 拖慢
+      const { archiveTerminalSupported, mountArchiveTerminal } = await import('../archive/terminal');
+      if (!root.isConnected) return;
+      if (!archiveTerminalSupported()) {
+        root.dataset.state = 'off';
+        return;
+      }
+      dispose = mountArchiveTerminal(root);
+    } catch (error) {
+      console.error('[archive] 终端启动失败，已改用列表视图', error);
+      root.dataset.state = 'off';
+    }
+  };
+
+  document.addEventListener('astro:page-load', boot);
+  // 离开页面前释放 WebGL 上下文（ClientRouter 切页不会刷新页面）
+  document.addEventListener('astro:before-preparation', () => {
+    dispose?.();
+    dispose = undefined;
+  });
+</script>
