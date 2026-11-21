@@ -29,8 +29,8 @@ export const LEGAL = {
 
 /** Artalk 评论系统配置 */
 export const ARTALK = {
-  /** 本地开发留空（组件运行时按当前主机自动拼 http://<host>:23366）；生产走 EdgeOne 反代域名（等 DNS 配好后自动生效） */
-  server: import.meta.env.DEV ? '' : 'https://comment.sparklerrr.cn',
+  /** 本地开发留空（组件运行时按当前主机自动拼 http://<host>:23366）；生产走统一隧道网关的 /artalk 路径 */
+  server: import.meta.env.DEV ? '' : 'https://dev-blog.u3924624.nyat.app:44295/artalk',
   /** 与服务器 ATK_SITE_DEFAULT 保持一致 */
   site: '家玉的博客',
 } as const;

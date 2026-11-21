@@ -1,0 +1,796 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const API_DEFAULT = 'https://dev-blog.u3924624.nyat.app:44295/subconv';
+const pageDesc =
+  '订阅转换：把订阅链接或节点转换成 Mihomo、Surge、sing-box、Quantumult X 等客户端配置。';
+
+const targets = [
+  { value: 'clash', label: 'Mihomo / Clash' },
+  { value: 'clashr', label: 'ClashR' },
+  { value: 'stash', label: 'Stash' },
+  { value: 'surge', label: 'Surge' },
+  { value: 'surfboard', label: 'Surfboard' },
+  { value: 'singbox', label: 'sing-box' },
+  { value: 'quanx', label: 'Quantumult X' },
+  { value: 'quan', label: 'Quantumult' },
+  { value: 'loon', label: 'Loon' },
+  { value: 'mellow', label: 'Mellow' },
+  { value: 'shadowrocket', label: 'Shadowrocket' },
+  { value: 'v2ray', label: 'V2Ray' },
+  { value: 'ssr', label: 'SSR' },
+  { value: 'ss', label: 'SS' },
+];
+---
+
+<BaseLayout title="订阅转换" description={pageDesc}>
+  <section class="container">
+    <div data-subconv data-api={API_DEFAULT}>
+      <div class="panel reveal-x subconv-page">
+        <header class="page-head">
+        <p class="micro-label">SERVICES // 订阅转换</p>
+        <h1 class="display-title title-with-icon">
+          <span class="title-icon-box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13 3 5 13h6l-1 8 8-10h-6z" />
+            </svg>
+          </span>
+          订阅转换
+        </h1>
+        <p class="subconv-lead">
+          把订阅链接或节点链接转换成客户端配置。Mihomo / Clash 默认使用 Proxy Provider，配置会引用你的订阅链接，由客户端自行更新节点。
+        </p>
+      </header>
+
+      <div class="subconv-status" aria-live="polite">
+        <span class="subconv-dot" data-status-dot aria-hidden="true"></span>
+        <span class="subconv-status-text" data-status-text>正在检查后端…</span>
+        <span class="subconv-status-sep" aria-hidden="true">/</span>
+        <span class="subconv-status-meta" data-status-version>版本 —</span>
+        <span class="subconv-status-sep" aria-hidden="true">/</span>
+        <span class="subconv-status-meta" data-status-api>—</span>
+        <button type="button" class="subconv-mini-btn" data-status-refresh>刷新</button>
+      </div>
+
+      <form class="subconv-form" data-form novalidate>
+        <div class="subconv-field">
+          <label for="subconv-urls">订阅链接</label>
+          <textarea
+            id="subconv-urls"
+            data-urls
+            rows="4"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="https://example.com/api/v1/client/subscribe?token=...&#10;每行一个链接，也可以直接粘贴 ss:// / vmess:// / trojan:// 节点"
+            required></textarea>
+          <p class="subconv-hint">
+            多行会用 <code>|</code> 合并后交给后端；链接只用于本次转换，本页不保存。
+          </p>
+        </div>
+
+        <div class="subconv-grid-2">
+          <div class="subconv-field">
+            <label for="subconv-target">目标客户端</label>
+            <select id="subconv-target" data-target>
+              {targets.map((t) => <option value={t.value}>{t.label}</option>)}
+            </select>
+            <p class="subconv-hint">Mihomo / Clash 默认以 Proxy Provider 输出。</p>
+          </div>
+          <div class="subconv-field" data-surge-field hidden>
+            <label for="subconv-surge-ver">Surge 版本</label>
+            <select id="subconv-surge-ver" data-surge-ver>
+              <option value="">默认（3）</option>
+              <option value="4">Surge 4</option>
+              <option value="5">Surge 5</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="subconv-field">
+          <label for="subconv-config">外部配置 / 模板 <span class="subconv-optional">可选</span></label>
+          <input
+            id="subconv-config"
+            data-config
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="留空则使用服务端默认模板" />
+          <button type="button" class="subconv-link-btn" data-fill-template>
+            填入 Custom_OpenClash_Rules 模板
+          </button>
+        </div>
+
+        <details class="subconv-details">
+          <summary>高级选项</summary>
+          <div class="subconv-details-body">
+            <div class="subconv-grid-2">
+              <div class="subconv-field">
+                <label for="subconv-include">包含节点（正则）</label>
+                <input id="subconv-include" data-include type="text" spellcheck="false" placeholder="例如：香港|HK" />
+              </div>
+              <div class="subconv-field">
+                <label for="subconv-exclude">排除节点（正则）</label>
+                <input id="subconv-exclude" data-exclude type="text" spellcheck="false" placeholder="例如：到期|剩余流量|官网" />
+              </div>
+            </div>
+
+            <div class="subconv-grid-2">
+              <div class="subconv-field">
+                <label for="subconv-rename">重命名规则</label>
+                <input id="subconv-rename" data-rename type="text" spellcheck="false" placeholder="正则@替换" />
+              </div>
+              <div class="subconv-field">
+                <label for="subconv-interval">更新间隔（小时）</label>
+                <input id="subconv-interval" data-interval type="number" min="1" step="1" placeholder="例如：24" />
+              </div>
+            </div>
+
+            <div class="subconv-grid-2">
+              <div class="subconv-field">
+                <label for="subconv-filename">输出文件名 <span class="subconv-optional">可选</span></label>
+                <input id="subconv-filename" data-filename type="text" spellcheck="false" placeholder="例如：my-sub" />
+              </div>
+              <div class="subconv-field">
+                <label for="subconv-ua">User-Agent <span class="subconv-optional">可选</span></label>
+                <input id="subconv-ua" data-ua type="text" spellcheck="false" placeholder="留空按目标客户端自动选择" />
+              </div>
+            </div>
+
+            <div class="subconv-toggles">
+              <label class="subconv-toggle"><input type="checkbox" data-param="emoji" checked /><span>节点名添加 Emoji</span></label>
+              <label class="subconv-toggle"><input type="checkbox" data-param="sort" /><span>按名称排序</span></label>
+              <label class="subconv-toggle"><input type="checkbox" data-param="fdn" /><span>过滤弃用节点</span></label>
+              <label class="subconv-toggle"><input type="checkbox" data-param="udp" /><span>强制启用 UDP</span></label>
+              <label class="subconv-toggle"><input type="checkbox" data-param="tfo" /><span>启用 TCP Fast Open</span></label>
+              <label class="subconv-toggle"><input type="checkbox" data-param="scv" /><span>跳过证书校验</span></label>
+              <label class="subconv-toggle"><input type="checkbox" data-param="tls13" /><span>启用 TLS 1.3</span></label>
+              <label class="subconv-toggle"><input type="checkbox" data-param="append_type" /><span>节点名附加类型</span></label>
+              <label class="subconv-toggle"><input type="checkbox" data-param="expand" /><span>展开规则集</span></label>
+              <label class="subconv-toggle"><input type="checkbox" data-param="classic" /><span>经典规则集</span></label>
+              <label class="subconv-toggle"><input type="checkbox" data-param="list" /><span>仅输出节点列表</span></label>
+            </div>
+          </div>
+        </details>
+
+        <div class="subconv-actions">
+          <button class="subconv-btn primary" type="submit" data-submit>
+            <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M13 3 5 13h6l-1 8 8-10h-6z" /></svg>
+            <span>生成配置</span>
+          </button>
+          <button class="subconv-btn" type="reset" data-reset>重置</button>
+        </div>
+      </form>
+
+      <p class="subconv-error" data-error hidden></p>
+
+      <section class="subconv-result" data-result hidden>
+        <div class="subconv-result-head">
+          <div>
+            <p class="micro-label">RESULT // 结果</p>
+            <h2>客户端订阅</h2>
+          </div>
+          <span class="subconv-result-note" data-result-note></span>
+        </div>
+
+        <div class="subconv-stats" data-stats></div>
+        <div class="subconv-card-grid" data-cards></div>
+
+        <details class="subconv-details subconv-diagnostic" data-diagnostic hidden>
+          <summary>诊断信息</summary>
+          <pre class="subconv-diagnostic-pre" data-diagnostic-pre></pre>
+        </details>
+
+        <div class="subconv-preview-head">
+          <span class="subconv-preview-title">内容预览 <em data-preview-label></em></span>
+          <button type="button" class="subconv-mini-btn" data-copy-content>复制内容</button>
+        </div>
+        <pre class="subconv-preview"><code data-preview></code></pre>
+      </section>
+
+        <p class="subconv-footnote">
+          后端：自建 SubConverter-Extended · 经 <code>dev-blog.u3924624.nyat.app:44295</code> 统一网关访问。
+          公共链接包含订阅参数，请勿公开分享。
+        </p>
+      </div>
+
+      <div class="subconv-qr-modal" data-qr-modal hidden aria-hidden="true">
+        <div class="subconv-qr-backdrop" data-qr-close></div>
+        <div class="subconv-qr-dialog" role="dialog" aria-modal="true" aria-labelledby="subconv-qr-title">
+          <div class="subconv-qr-head">
+            <div>
+              <p class="micro-label">QR // 扫码导入</p>
+              <h2 id="subconv-qr-title">订阅二维码</h2>
+            </div>
+            <button type="button" class="subconv-mini-btn" data-qr-close>关闭</button>
+          </div>
+          <div class="subconv-qr-canvas" data-qr-canvas></div>
+          <p class="subconv-qr-url" data-qr-url></p>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  import qrcode from 'qrcode-generator';
+
+  const TARGET_LABELS: Record<string, string> = {
+    clash: 'Mihomo / Clash',
+    clashr: 'ClashR',
+    stash: 'Stash',
+    surge: 'Surge',
+    surfboard: 'Surfboard',
+    singbox: 'sing-box',
+    quanx: 'Quantumult X',
+    quan: 'Quantumult',
+    loon: 'Loon',
+    mellow: 'Mellow',
+    shadowrocket: 'Shadowrocket',
+    v2ray: 'V2Ray',
+    ssr: 'SSR',
+    ss: 'SS',
+  };
+
+  const EXTENSIONS: Record<string, string> = {
+    clash: 'yaml',
+    clashr: 'yaml',
+    stash: 'yaml',
+    surge: 'conf',
+    surfboard: 'conf',
+    loon: 'conf',
+    quanx: 'conf',
+    quan: 'conf',
+    mellow: 'conf',
+    singbox: 'json',
+  };
+
+  const CARDS = [
+    { target: 'clash', label: 'Mihomo / Clash', tag: 'CLASH' },
+    { target: 'surge', label: 'Surge', tag: 'SURGE' },
+    { target: 'surfboard', label: 'Surfboard', tag: 'SURFBOARD' },
+    { target: 'singbox', label: 'sing-box', tag: 'SING-BOX' },
+    { target: 'quanx', label: 'Quantumult X', tag: 'QUANX' },
+    { target: 'loon', label: 'Loon', tag: 'LOON' },
+    { target: 'stash', label: 'Stash', tag: 'STASH' },
+    { target: 'shadowrocket', label: '节点链接列表', tag: 'LINKS', list: true },
+  ];
+
+  const TEMPLATE_URL =
+    'https://testingcf.jsdelivr.net/gh/Aethersailor/Custom_OpenClash_Rules@refs/heads/main/cfg/Custom_Clash.ini';
+
+  function showToast(message: string, type: 'ok' | 'err' = 'ok') {
+    const host = window as unknown as { showToast?: (m: string, t?: 'ok' | 'err') => void };
+    if (host.showToast) host.showToast(message, type);
+  }
+
+  function copyFallback(text: string): boolean {
+    try {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.top = '-9999px';
+      area.style.left = '-9999px';
+      document.body.appendChild(area);
+      area.focus();
+      area.select();
+      const ok = document.execCommand('copy');
+      area.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async function copyText(text: string, label = '内容') {
+    if (!text) return;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else if (!copyFallback(text)) {
+        throw new Error('copy failed');
+      }
+      showToast(`${label}已复制`, 'ok');
+    } catch {
+      showToast('复制失败，请手动选择文本', 'err');
+    }
+  }
+
+  function formatBytes(size: number): string {
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 / 1024).toFixed(2)} MB`;
+  }
+
+  function normalizeApi(value: string): string {
+    return value.trim().replace(/\/+$/, '');
+  }
+
+  function resolveApi(root: HTMLElement): string {
+    const override = new URLSearchParams(window.location.search).get('api');
+    const candidate = normalizeApi(override || root.dataset.api || 'https://dev-blog.u3924624.nyat.app:44295/subconv');
+    try {
+      const parsed = new URL(candidate);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return candidate;
+    } catch {
+      /* ignore */
+    }
+    return 'https://dev-blog.u3924624.nyat.app:44295/subconv';
+  }
+
+  function clearTimer() {
+    const host = window as unknown as { __subconvStatusTimer?: number };
+    if (host.__subconvStatusTimer) {
+      window.clearInterval(host.__subconvStatusTimer);
+      host.__subconvStatusTimer = undefined;
+    }
+  }
+
+  function init() {
+    const root = document.querySelector<HTMLElement>('[data-subconv]');
+    if (!root) {
+      clearTimer();
+      return;
+    }
+    if (root.dataset.bound === '1') return;
+    root.dataset.bound = '1';
+
+    const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector);
+    const api = resolveApi(root);
+
+    const form = $<HTMLFormElement>('[data-form]')!;
+    const urlsInput = $<HTMLTextAreaElement>('[data-urls]')!;
+    const targetSelect = $<HTMLSelectElement>('[data-target]')!;
+    const surgeField = $<HTMLElement>('[data-surge-field]')!;
+    const surgeVer = $<HTMLSelectElement>('[data-surge-ver]')!;
+    const configInput = $<HTMLInputElement>('[data-config]')!;
+    const includeInput = $<HTMLInputElement>('[data-include]')!;
+    const excludeInput = $<HTMLInputElement>('[data-exclude]')!;
+    const renameInput = $<HTMLInputElement>('[data-rename]')!;
+    const intervalInput = $<HTMLInputElement>('[data-interval]')!;
+    const filenameInput = $<HTMLInputElement>('[data-filename]')!;
+    const uaInput = $<HTMLInputElement>('[data-ua]')!;
+    const submitBtn = $<HTMLButtonElement>('[data-submit]')!;
+    const resetBtn = $<HTMLButtonElement>('[data-reset]')!;
+    const fillTemplateBtn = $<HTMLButtonElement>('[data-fill-template]')!;
+    const errorBox = $<HTMLElement>('[data-error]')!;
+    const result = $<HTMLElement>('[data-result]')!;
+    const resultNote = $<HTMLElement>('[data-result-note]')!;
+    const statsBox = $<HTMLElement>('[data-stats]')!;
+    const cardsBox = $<HTMLElement>('[data-cards]')!;
+    const diagnostic = $<HTMLDetailsElement>('[data-diagnostic]')!;
+    const diagnosticPre = $<HTMLElement>('[data-diagnostic-pre]')!;
+    const preview = $<HTMLElement>('[data-preview]')!;
+    const previewLabel = $<HTMLElement>('[data-preview-label]')!;
+    const copyContentBtn = $<HTMLButtonElement>('[data-copy-content]')!;
+    const statusDot = $<HTMLElement>('[data-status-dot]')!;
+    const statusText = $<HTMLElement>('[data-status-text]')!;
+    const statusVersion = $<HTMLElement>('[data-status-version]')!;
+    const statusApi = $<HTMLElement>('[data-status-api]')!;
+    const statusRefresh = $<HTMLButtonElement>('[data-status-refresh]')!;
+    const qrModal = $<HTMLElement>('[data-qr-modal]')!;
+    const qrCanvas = $<HTMLElement>('[data-qr-canvas]')!;
+    const qrUrlText = $<HTMLElement>('[data-qr-url]')!;
+
+    const contentCache = new Map<string, string>();
+    let lastContent = '';
+    let lastContentLabel = '';
+
+    statusApi.textContent = api.replace(/^https?:\/\//, '');
+
+    function updateSurgeField() {
+      surgeField.hidden = targetSelect.value !== 'surge';
+    }
+
+    function baseParams(): Record<string, string> {
+      const urls = urlsInput.value
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join('|');
+      const params: Record<string, string> = { url: urls };
+
+      const optional: Array<[string, string]> = [
+        ['config', configInput.value.trim()],
+        ['include', includeInput.value.trim()],
+        ['exclude', excludeInput.value.trim()],
+        ['rename', renameInput.value.trim()],
+        ['interval', intervalInput.value.trim()],
+        ['filename', filenameInput.value.trim()],
+        ['_ua', uaInput.value.trim()],
+      ];
+      for (const [key, value] of optional) {
+        if (value) params[key] = value;
+      }
+
+      root.querySelectorAll<HTMLInputElement>('input[data-param]').forEach((checkbox) => {
+        if (checkbox.checked) params[checkbox.dataset.param || ''] = 'true';
+      });
+      return params;
+    }
+
+    function paramsFor(target: string, options: { list?: boolean; explain?: boolean } = {}) {
+      const params = baseParams();
+      params.target = target;
+      if (target === 'surge' && surgeVer.value) params.ver = surgeVer.value;
+      if (options.list) params.list = 'true';
+      if (options.explain) params.explain = '1';
+      return params;
+    }
+
+    function makeUrl(params: Record<string, string>): string {
+      return `${api}/sub?${new URLSearchParams(params).toString()}`;
+    }
+
+    function showError(message: string) {
+      errorBox.textContent = message;
+      errorBox.hidden = false;
+    }
+
+    function clearError() {
+      errorBox.textContent = '';
+      errorBox.hidden = true;
+    }
+
+    function setLoading(loading: boolean) {
+      submitBtn.disabled = loading;
+      submitBtn.classList.toggle('is-loading', loading);
+      const label = submitBtn.querySelector('span');
+      if (label) label.textContent = loading ? '转换中…' : '生成配置';
+    }
+
+    async function fetchText(url: string): Promise<string> {
+      const response = await fetch(url, { cache: 'no-store' });
+      const text = await response.text();
+      if (!response.ok) {
+        throw new Error(text.trim() || `HTTP ${response.status}`);
+      }
+      return text;
+    }
+
+    async function fetchExplain(target: string) {
+      const url = makeUrl(paramsFor(target, { explain: true }));
+      const response = await fetch(url, { cache: 'no-store' });
+      const text = await response.text();
+      try {
+        return { status: response.status, json: JSON.parse(text) as Record<string, any> };
+      } catch {
+        return { status: response.status, json: null, text };
+      }
+    }
+
+    function addStat(label: string, value: string) {
+      const item = document.createElement('span');
+      item.className = 'subconv-stat';
+      item.textContent = `${label} ${value}`;
+      statsBox.appendChild(item);
+    }
+
+    function renderStats(target: string, text: string, explain: { status: number; json: Record<string, any> | null }, elapsed: number) {
+      statsBox.replaceChildren();
+      addStat('目标', TARGET_LABELS[target] || target);
+      const json = explain.json;
+      const nodes = json?.nodes?.total;
+      if (typeof nodes === 'number') addStat('节点', String(nodes));
+      const mode = json?.mode;
+      if (mode) {
+        const modeLabel = mode.proxy_provider ? 'Proxy Provider' : mode.simple_subscription ? '节点列表' : '服务端解析';
+        addStat('模式', modeLabel);
+      }
+      const rulesets = json?.resources?.ruleset_count;
+      if (typeof rulesets === 'number') addStat('规则集', String(rulesets));
+      const bytes = json?.output?.bytes ?? new Blob([text]).size;
+      addStat('大小', formatBytes(bytes));
+      addStat('耗时', `${elapsed} ms`);
+    }
+
+    function renderDiagnostic(explain: { status: number; json: Record<string, any> | null; text?: string }) {
+      if (!explain.json) {
+        diagnostic.hidden = true;
+        return;
+      }
+      const json = explain.json;
+      const summary = {
+        ok: json.ok,
+        status_code: json.status_code,
+        target: json.target,
+        mode: json.mode,
+        inputs: json.inputs,
+        nodes: json.nodes,
+        resources: json.resources,
+        output: json.output,
+        warnings: json.warnings ?? null,
+      };
+      diagnosticPre.textContent = JSON.stringify(summary, null, 2);
+      diagnostic.hidden = false;
+    }
+
+    function setPreview(text: string, label: string) {
+      lastContent = text;
+      lastContentLabel = label;
+      preview.textContent = text;
+      previewLabel.textContent = label ? `· ${label}` : '';
+    }
+
+    function extensionFor(target: string, list: boolean): string {
+      if (list) return 'txt';
+      return EXTENSIONS[target] || 'txt';
+    }
+
+    function downloadBlob(text: string, target: string, list: boolean) {
+      const base = filenameInput.value.trim() || `subconverter-${target}`;
+      const filename = `${base}${list ? '-links' : ''}.${extensionFor(target, list)}`;
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const href = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+    }
+
+    function openQr(url: string) {
+      try {
+        const qr = qrcode(0, 'M');
+        qr.addData(url, 'Byte');
+        qr.make();
+        qrCanvas.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+      } catch {
+        showToast('链接太长，二维码生成失败', 'err');
+        return;
+      }
+      qrUrlText.textContent = url;
+      qrModal.hidden = false;
+      qrModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeQr() {
+      qrModal.hidden = true;
+      qrModal.setAttribute('aria-hidden', 'true');
+      qrCanvas.replaceChildren();
+    }
+
+    function cardKey(target: string, list: boolean): string {
+      return `${target}:${list ? 'list' : 'config'}`;
+    }
+
+    function makeCard(target: string, label: string, tag: string, list: boolean) {
+      const url = makeUrl(paramsFor(target, { list }));
+      const key = cardKey(target, list);
+
+      const card = document.createElement('article');
+      card.className = 'subconv-card';
+
+      const head = document.createElement('div');
+      head.className = 'subconv-card-head';
+      const titleWrap = document.createElement('div');
+      const tagEl = document.createElement('span');
+      tagEl.className = 'subconv-card-label';
+      tagEl.textContent = tag;
+      const title = document.createElement('h3');
+      title.textContent = label;
+      titleWrap.append(tagEl, title);
+      const state = document.createElement('span');
+      state.className = 'subconv-card-state';
+      state.textContent = '链接已生成';
+      head.append(titleWrap, state);
+
+      const urlInput = document.createElement('input');
+      urlInput.className = 'subconv-url';
+      urlInput.type = 'text';
+      urlInput.readOnly = true;
+      urlInput.value = url;
+      urlInput.setAttribute('aria-label', `${label} 订阅地址`);
+
+      const actions = document.createElement('div');
+      actions.className = 'subconv-card-actions';
+
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'subconv-mini-btn';
+      copyBtn.textContent = '复制';
+      copyBtn.addEventListener('click', () => copyText(url, '订阅地址'));
+
+      const qrBtn = document.createElement('button');
+      qrBtn.type = 'button';
+      qrBtn.className = 'subconv-mini-btn';
+      qrBtn.textContent = '二维码';
+      qrBtn.addEventListener('click', () => openQr(url));
+
+      const previewBtn = document.createElement('button');
+      previewBtn.type = 'button';
+      previewBtn.className = 'subconv-mini-btn';
+      previewBtn.textContent = '预览';
+      previewBtn.addEventListener('click', async () => {
+        previewBtn.disabled = true;
+        try {
+          let text = contentCache.get(key);
+          if (text === undefined) {
+            text = await fetchText(url);
+            contentCache.set(key, text);
+          }
+          setPreview(text, label);
+          state.textContent = formatBytes(new Blob([text]).size);
+          showToast(`${label} 已加载预览`, 'ok');
+        } catch (error) {
+          showToast(`预览失败：${(error as Error).message}`, 'err');
+        } finally {
+          previewBtn.disabled = false;
+        }
+      });
+
+      const downloadBtn = document.createElement('button');
+      downloadBtn.type = 'button';
+      downloadBtn.className = 'subconv-mini-btn';
+      downloadBtn.textContent = '下载';
+      downloadBtn.addEventListener('click', async () => {
+        downloadBtn.disabled = true;
+        try {
+          let text = contentCache.get(key);
+          if (text === undefined) {
+            text = await fetchText(url);
+            contentCache.set(key, text);
+          }
+          downloadBlob(text, target, list);
+          state.textContent = formatBytes(new Blob([text]).size);
+        } catch (error) {
+          showToast(`下载失败：${(error as Error).message}`, 'err');
+        } finally {
+          downloadBtn.disabled = false;
+        }
+      });
+
+      actions.append(copyBtn, qrBtn, previewBtn, downloadBtn);
+      card.append(head, urlInput, actions);
+
+      if (target === targetSelect.value && !list) {
+        state.textContent = '当前目标';
+      }
+      return { card, key, state };
+    }
+
+    function renderCards() {
+      cardsBox.replaceChildren();
+      const entries: Array<{ target: string; label: string; tag: string; list: boolean; state: HTMLElement }> = [];
+      for (const item of CARDS) {
+        const { card, key, state } = makeCard(item.target, item.label, item.tag, Boolean(item.list));
+        cardsBox.appendChild(card);
+        entries.push({ ...item, list: Boolean(item.list), state });
+        if (contentCache.has(key)) {
+          const text = contentCache.get(key)!;
+          state.textContent = formatBytes(new Blob([text]).size);
+        }
+      }
+      return entries;
+    }
+
+    function renderResult(target: string, text: string, explain: { status: number; json: Record<string, any> | null }, elapsed: number) {
+      result.hidden = false;
+      resultNote.textContent = `${TARGET_LABELS[target] || target} · ${formatBytes(new Blob([text]).size)}`;
+      renderStats(target, text, explain, elapsed);
+      renderCards();
+      renderDiagnostic(explain);
+      setPreview(text, TARGET_LABELS[target] || target);
+      contentCache.set(cardKey(target, false), text);
+      result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function convert(event: Event) {
+      event.preventDefault();
+      clearError();
+      const target = targetSelect.value;
+      const params = paramsFor(target);
+      if (!params.url) {
+        showError('请先填写订阅链接。');
+        urlsInput.focus();
+        return;
+      }
+
+      setLoading(true);
+      const started = performance.now();
+      try {
+        const url = makeUrl(params);
+        const [text, explain] = await Promise.all([
+          fetchText(url),
+          fetchExplain(target).catch(() => ({ status: 0, json: null })),
+        ]);
+        renderResult(target, text, explain, Math.round(performance.now() - started));
+        showToast('配置已生成', 'ok');
+      } catch (error) {
+        const message = (error as Error).message || String(error);
+        showError(message.slice(0, 800));
+        const explain = await fetchExplain(target).catch(() => null);
+        if (explain) {
+          result.hidden = false;
+          renderDiagnostic(explain);
+        }
+        showToast('转换失败', 'err');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function refreshStatus() {
+      statusDot.className = 'subconv-dot';
+      statusText.textContent = '正在检查…';
+      try {
+        const [healthRes, versionRes] = await Promise.all([
+          fetch(`${api}/healthz`, { cache: 'no-store' }),
+          fetch(`${api}/version`, { cache: 'no-store' }),
+        ]);
+        const health = healthRes.ok ? (await healthRes.text()).trim() : '';
+        const versionHtml = versionRes.ok ? await versionRes.text() : '';
+        const ok = /^ok$/i.test(health);
+        statusDot.classList.add(ok ? 'ok' : 'bad');
+        statusText.textContent = ok ? '后端正常' : '后端不可达';
+        const version = /v\d+\.\d+\.\d+/.exec(versionHtml);
+        statusVersion.textContent = version ? `版本 ${version[0]}` : '版本 —';
+      } catch {
+        statusDot.classList.add('bad');
+        statusText.textContent = '后端不可达';
+        statusVersion.textContent = '版本 —';
+      }
+    }
+
+    form.addEventListener('submit', convert);
+    targetSelect.addEventListener('change', updateSurgeField);
+
+    fillTemplateBtn.addEventListener('click', () => {
+      configInput.value = TEMPLATE_URL;
+      configInput.focus();
+      showToast('已填入 Clash 模板地址', 'ok');
+    });
+
+    resetBtn.addEventListener('click', () => {
+      window.setTimeout(() => {
+        result.hidden = true;
+        clearError();
+        contentCache.clear();
+        lastContent = '';
+        statsBox.replaceChildren();
+        cardsBox.replaceChildren();
+        diagnostic.hidden = true;
+        preview.textContent = '';
+        previewLabel.textContent = '';
+        updateSurgeField();
+      }, 0);
+    });
+
+    urlsInput.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    copyContentBtn.addEventListener('click', () => copyText(lastContent, `${lastContentLabel || '内容'} `));
+
+    statusRefresh.addEventListener('click', refreshStatus);
+
+    qrModal.querySelectorAll('[data-qr-close]').forEach((el) => {
+      el.addEventListener('click', closeQr);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !qrModal.hidden) closeQr();
+    });
+
+    updateSurgeField();
+    refreshStatus();
+    clearTimer();
+    const host = window as unknown as { __subconvStatusTimer?: number };
+    host.__subconvStatusTimer = window.setInterval(refreshStatus, 60_000);
+  }
+
+  init();
+  document.addEventListener('astro:page-load', init);
+  document.addEventListener('astro:before-swap', () => {
+    clearTimer();
+    const modal = document.querySelector<HTMLElement>('[data-qr-modal]');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  });
+</script>
