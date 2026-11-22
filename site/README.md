@@ -1,6 +1,6 @@
 # BLOG_YU · 家玉的小站（site/）
 
-鹰角 / 明日方舟风格的 Astro 个人博客，v2.2.0。整体冰川蓝浅色主题 + 暗色冰川皮肤切换。
+鹰角 / 明日方舟风格的 Astro 个人博客，v2.2.1。整体冰川蓝浅色主题 + 暗色冰川皮肤切换。
 
 设计参考：ak.hypergryph.com（导航板块与横向过渡）、blog.myqfeng.top（导航布局、搜索面板、音乐播放器 UI）、070219.xyz（选中高亮）、deepseek.com/harness（版块透明度与 hover 发光）。
 
@@ -23,6 +23,7 @@ pnpm preview         # 本地预览构建产物
 - **社交** ▾ 友链 /friends/ · 留言 /guestbook/
 - **我的** ▾ 动态 /dynamic/ · 相册 /gallery/ · 追番 /anime/
 - 资源 → /resources/
+- 服务 → /services/（订阅转换 → /services/subconverter/）
 - **关于** ▾ 打赏 /sponsor/ · 关于我 /about/
 - **链接** ▾ GitHub · Gitee · Bilibili（新标签打开，带外链箭头图标）
 - 右侧工具：搜索（悬浮面板）/ 亮暗切换 / 汉堡（移动端）
@@ -82,21 +83,36 @@ draft: false          # true 时不发布
 
 ```sh
 cd site
-zip -r ../public/resources/blog-yu-source-v<版本>.zip .   -x 'node_modules/*' 'dist/*' '.git/*' 'public/music/*' 'public/gallery/*'      'public/wallpapers/*' 'public/sponsor/*' 'public/resources/*' 'public/icons/*' '.astro/*'
-# 或 Python：
+zip -r public/resources/blog-yu-source-v<版本>.zip .   -x 'node_modules/*' 'dist/*' '.git/*' 'public/music/*' 'public/gallery/*' 'public/wallpapers/*' 'public/sponsor/*' 'public/resources/*' 'public/icons/*' '.astro/*' 'pm2-watchdog.sh'
+# 或 Python（按相对路径排除目录）：
 python3 - << 'PY'
 import zipfile, os
-EXCLUDE = {'node_modules','dist','.astro','.git','public/music','public/gallery',
-           'public/wallpapers','public/sponsor','public/resources','public/icons'}
-with zipfile.ZipFile('public/resources/blog-yu-source-v2.2.0.zip','w',zipfile.ZIP_DEFLATED,9) as z:
+EXCLUDE_DIRS = {'node_modules', 'dist', '.astro', '.git',
+                'public/music', 'public/gallery', 'public/wallpapers',
+                'public/sponsor', 'public/resources', 'public/icons'}
+EXCLUDE_FILES = {'pm2-watchdog.sh'}
+with zipfile.ZipFile('public/resources/blog-yu-source-v2.2.1.zip', 'w', zipfile.ZIP_DEFLATED, 9) as z:
     for root, dirs, files in os.walk('.'):
-        dirs[:] = [d for d in dirs if d not in EXCLUDE]
-        for f in files:
-            z.write(os.path.join(root,f), os.path.join(root,f).lstrip('./'))
+        rel = os.path.relpath(root, '.').replace(os.sep, '/')
+        rel = '' if rel == '.' else rel
+        dirs[:] = sorted(d for d in dirs if (f'{rel}/{d}' if rel else d) not in EXCLUDE_DIRS)
+        for f in sorted(files):
+            rel_file = f'{rel}/{f}' if rel else f
+            if rel_file in EXCLUDE_FILES:
+                continue
+            z.write(os.path.join(root, f), rel_file)
 PY
 ```
 
   然后更新 `resources.ts` 里的版本与链接
+
+## 服务与订阅转换
+
+- `/services/`：服务板块，包含网站搭建、技术咨询、AI 工具集成，以及「订阅转换」入口卡片。
+- `/services/subconverter/`：订阅转换页，支持 Mihomo / Surge / Surfboard / sing-box / Quantumult X / Loon / Stash 多客户端结果卡、二维码、订阅预览、下载与 `explain` 诊断统计。
+- 后端：本机 Docker 运行的 SubConverter-Extended，经 SakuraFrp 统一网关 `https://dev-blog.u3924624.nyat.app:44295` 暴露 `/subconv/`；Artalk 评论走同一网关的 `/artalk/`。
+- 页面默认 API 是上述 `/subconv/`；本地调试可加 `?api=http://127.0.0.1:25500` 直连本地后端。
+- 网关按路径转发，不直接暴露本机端口；`/subconv/` 带限流，后端保持 `public` 安全档位。
 
 ## 定制
 
@@ -125,13 +141,14 @@ export const LEGAL = {
 site/
 ├── public/                  # favicon、music/（mp3 与封面）、resources/（下载资源）
 └── src/
-    ├── pages/               # 首页 / 归档 / 分类 / 标签 / 友链 / 留言 / 动态 / 相册 / 追番 / 资源 / 打赏 / 关于 / 搜索 / 文章页 / 404
+    ├── pages/               # 首页 / 归档 / 分类 / 标签 / 友链 / 留言 / 动态 / 相册 / 追番 / 资源 / 服务 / 打赏 / 关于 / 搜索 / 文章页 / 404
+    │   └── services/        # services.astro + subconverter.astro
     ├── layouts/BaseLayout.astro   # 布局骨架 + OpenGraph
     ├── scripts/app.ts       # 全站客户端交互（导航/搜索/主题/播放器/动效）
     ├── components/          # TopNav / Hero / ArticleCard / SectionHead / Tag / EmptyState / AvatarParticles / Comments / ProgressRing / Footer
     ├── content.config.ts    # 文章集合 schema
     ├── content/posts/       # 文章
-    ├── data/                # friends.ts / music.ts / resources.ts（各板块唯一数据源）
+    ├── data/                # friends.ts / music.ts / resources.ts / services.ts（各板块唯一数据源）
     ├── lib/site.ts          # 站点信息与分类元数据
     └── styles/              # tokens / layout / components / pages（按域拆分）
 ```

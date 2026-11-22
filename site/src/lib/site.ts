@@ -29,12 +29,8 @@ export const LEGAL = {
 
 /** Artalk 评论系统配置 */
 export const ARTALK = {
-  /**
-   * 本地开发留空（组件运行时按当前主机自动拼 http://<host>:23366）。
-   * 生产：SakuraFrp 隧道 + 子域绑定（nyat.app 子域名，平台下发 SSL 证书，自动 HTTPS 须为「自动」）。
-   * 必须是 HTTPS 地址，否则博客（HTTPS 页面）会以混合内容拦截评论脚本；隧道地址或端口变更后需同步修改此处并重新部署。
-   */
-  server: import.meta.env.DEV ? '' : 'https://dev-blog.u3924624.nyat.app:44295',
+  /** 本地开发留空（组件运行时按当前主机自动拼 http://<host>:23366）；生产走统一隧道网关的 /artalk 路径 */
+  server: import.meta.env.DEV ? '' : 'https://dev-blog.u3924624.nyat.app:44295/artalk',
   /** 与服务器 ATK_SITE_DEFAULT 保持一致 */
   site: '家玉的博客',
 } as const;

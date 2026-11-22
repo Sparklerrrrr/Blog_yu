@@ -128,6 +128,12 @@ const path = Astro.url.pathname.replace(/\/+$/, '');
         <span>资源</span>
       </a>
 
+      <!-- 服务 -->
+      <a class="nav-item" href="/services/" aria-current={path === '/services' ? 'page' : undefined}>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" /><path d="M9 8V6.5A1.5 1.5 0 0 1 10.5 5h3A1.5 1.5 0 0 1 15 6.5V8" /><path d="M9.5 12.5h5" /></svg>
+        <span>服务</span>
+      </a>
+
       <!-- 关于 -->
       <div class="dropdown" data-dropdown>
         <button
@@ -245,6 +251,7 @@ const path = Astro.url.pathname.replace(/\/+$/, '');
     <a href="/gallery/">相册 GALLERY</a>
     <a href="/anime/">追番 ANIME</a>
     <a href="/resources/">资源 RESOURCES</a>
+    <a href="/services/">服务 SERVICES</a>
     <a href="/sponsor/">打赏 SPONSOR</a>
     <a href="/about/">关于我 ABOUT</a>
     <a href="https://github.com/Sparklerrrrr" target="_blank" rel="noopener">GitHub</a>
