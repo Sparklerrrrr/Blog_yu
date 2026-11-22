@@ -11,7 +11,7 @@
   3. 把版权声明写进 glTF 的 asset.copyright。
 顶点位置 / 法线 / 索引原样保留，不做量化。
 
-用法：python3 scripts/prune-archive-model.py <原始 glb> public/archive/archive-cassette.glb
+用法：python3 scripts/prune-archive-model.py <原始 glb> public/models/archive-cassette.glb
 """
 import json
 import struct

@@ -355,7 +355,7 @@ export class ArchiveScene {
     this.bindPointer();
   }
   /**
-   * @param assetUrl 档案盒模型地址（博客版：public/archive/archive-cassette.glb）
+   * @param assetUrl 档案盒模型地址（博客版：public/models/archive-cassette.glb）
    * @param onProgress 下载进度 0–1（服务器没给 Content-Length 时不会回调）
    */
   async load(assetUrl: string, onProgress?: (ratio: number) => void) {

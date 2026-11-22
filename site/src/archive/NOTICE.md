@@ -1,6 +1,6 @@
 # 文章档案终端 · 第三方声明
 
-`src/archive/engine/` 下的三维档案阵列、解密动效与正文揭示，以及 `public/archive/archive-cassette.glb`
+`src/archive/engine/` 下的三维档案阵列、解密动效与正文揭示，以及 `public/models/archive-cassette.glb`
 模型，移植自 **RhineLabUI**（作者 LBEILC）：
 
 - 仓库：https://github.com/LBEILC/RhineLabUI
