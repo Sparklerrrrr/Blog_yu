@@ -1,25 +1,84 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 
+/**
+ * 订阅转换（前端静态页 + 自建 SubConverter-Extended 后端）
+ * 2026-11-25 重构：参考 Aethersailor/SubConverter-Extended（后端参数/诊断）、
+ * InfiCheesy/cloudflaresub（CF 优选 IP 替换思路，纯前端实现）。
+ * 参数与后端行为均以已部署的 v1.11.8 实测为准（explain=true 诊断报告）。
+ */
 const API_DEFAULT = 'https://dev-blog.u3924624.nyat.app:44295/subconv';
+const CFST_REPO = 'https://github.com/XIU2/CloudflareSpeedTest';
+const CFST_RELEASES = 'https://github.com/XIU2/CloudflareSpeedTest/releases/latest';
 const pageDesc =
-  '订阅转换：把订阅链接或节点转换成 Mihomo、Surge、sing-box、Quantumult X 等客户端配置。';
+  '订阅转换：把订阅链接或节点转换成 Mihomo、Surge、sing-box、Quantumult X 等客户端配置，支持 CF 优选 IP 批量替换。';
 
-const targets = [
-  { value: 'clash', label: 'Mihomo / Clash' },
-  { value: 'clashr', label: 'ClashR' },
-  { value: 'stash', label: 'Stash' },
-  { value: 'surge', label: 'Surge' },
-  { value: 'surfboard', label: 'Surfboard' },
-  { value: 'singbox', label: 'sing-box' },
-  { value: 'quanx', label: 'Quantumult X' },
-  { value: 'quan', label: 'Quantumult' },
-  { value: 'loon', label: 'Loon' },
-  { value: 'mellow', label: 'Mellow' },
-  { value: 'shadowrocket', label: 'Shadowrocket' },
-  { value: 'v2ray', label: 'V2Ray' },
-  { value: 'ssr', label: 'SSR' },
-  { value: 'ss', label: 'SS' },
+const targetGroups = [
+  {
+    label: '自动',
+    items: [{ value: 'auto', label: '自动识别（按客户端 UA）' }],
+  },
+  {
+    label: '完整配置',
+    items: [
+      { value: 'clash', label: 'Mihomo / Clash' },
+      { value: 'clashr', label: 'ClashR' },
+      { value: 'stash', label: 'Stash' },
+      { value: 'surge', label: 'Surge' },
+      { value: 'surfboard', label: 'Surfboard' },
+      { value: 'singbox', label: 'sing-box' },
+      { value: 'quanx', label: 'Quantumult X' },
+      { value: 'quan', label: 'Quantumult' },
+      { value: 'loon', label: 'Loon' },
+      { value: 'mellow', label: 'Mellow' },
+    ],
+  },
+  {
+    label: '客户端原生订阅',
+    items: [
+      { value: 'shadowrocket', label: 'Shadowrocket' },
+      { value: 'mixed', label: '通用 Base64（v2rayN / NekoBox）' },
+      { value: 'v2rayn', label: 'v2rayN' },
+      { value: 'v2rayng', label: 'v2rayNG' },
+      { value: 'sssub', label: 'SS 订阅（SIP008）' },
+      { value: 'ssd', label: 'SSD' },
+    ],
+  },
+  {
+    label: '单协议链接列表',
+    items: [
+      { value: 'ss', label: 'SS' },
+      { value: 'ssr', label: 'SSR' },
+      { value: 'v2ray', label: 'V2Ray（VMess）' },
+      { value: 'trojan', label: 'Trojan' },
+      { value: 'vless', label: 'VLESS' },
+      { value: 'hysteria2', label: 'Hysteria2' },
+    ],
+  },
+];
+
+/** 托管配置更新间隔：后端按「秒」解析（原页面写「小时」直接发数字，填 24 实为 24 秒） */
+const intervals = [
+  { value: '', label: '默认（24 小时）' },
+  { value: '21600', label: '6 小时' },
+  { value: '43200', label: '12 小时' },
+  { value: '86400', label: '24 小时' },
+  { value: '259200', label: '3 天' },
+  { value: '604800', label: '7 天' },
+];
+
+/** 外部配置预设：均经后端 explain 验证 external_config.loaded=true */
+const configPresets = [
+  { value: '', label: '服务端默认（Custom_OpenClash_Rules · Custom_Clash.ini）' },
+  {
+    value: 'https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/config/ACL4SSR_Online_Mini.ini',
+    label: 'ACL4SSR 精简版（Online_Mini）',
+  },
+  {
+    value: 'https://testingcf.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/config/ACL4SSR_Online_Full.ini',
+    label: 'ACL4SSR 全分组（Online_Full）',
+  },
+  { value: '__custom', label: '自定义 URL…' },
 ];
 ---
 
@@ -28,193 +87,325 @@ const targets = [
     <div data-subconv data-api={API_DEFAULT}>
       <div class="panel reveal-x subconv-page">
         <header class="page-head">
-        <p class="micro-label">SERVICES // 订阅转换</p>
-        <h1 class="display-title title-with-icon">
-          <span class="title-icon-box" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M13 3 5 13h6l-1 8 8-10h-6z" />
-            </svg>
-          </span>
-          订阅转换
-        </h1>
-        <p class="subconv-lead">
-          把订阅链接或节点链接转换成客户端配置。Mihomo / Clash 默认使用 Proxy Provider，配置会引用你的订阅链接，由客户端自行更新节点。
-        </p>
-      </header>
-
-      <div class="subconv-status" aria-live="polite">
-        <span class="subconv-dot" data-status-dot aria-hidden="true"></span>
-        <span class="subconv-status-text" data-status-text>正在检查后端…</span>
-        <span class="subconv-status-sep" aria-hidden="true">/</span>
-        <span class="subconv-status-meta" data-status-version>版本 —</span>
-        <span class="subconv-status-sep" aria-hidden="true">/</span>
-        <span class="subconv-status-meta" data-status-api>—</span>
-        <button type="button" class="subconv-mini-btn" data-status-refresh>刷新</button>
-      </div>
-
-      <form class="subconv-form" data-form novalidate>
-        <div class="subconv-field">
-          <label for="subconv-urls">订阅链接</label>
-          <textarea
-            id="subconv-urls"
-            data-urls
-            rows="4"
-            spellcheck="false"
-            autocomplete="off"
-            placeholder="https://example.com/api/v1/client/subscribe?token=...&#10;每行一个链接，也可以直接粘贴 ss:// / vmess:// / trojan:// 节点"
-            required></textarea>
-          <p class="subconv-hint">
-            多行会用 <code>|</code> 合并后交给后端；链接只用于本次转换，本页不保存。
+          <p class="micro-label">SERVICES // 订阅转换</p>
+          <h1 class="display-title title-with-icon">
+            <span class="title-icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3 5 13h6l-1 8 8-10h-6z" /></svg>
+            </span>
+            订阅转换
+          </h1>
+          <p class="subconv-lead">
+            把订阅链接或节点链接转换成各客户端配置。订阅链接在 Mihomo / Clash 下以 Proxy Provider 输出，由客户端自行更新节点；直接粘贴的节点链接会内嵌进配置。
           </p>
-        </div>
+        </header>
 
-        <div class="subconv-grid-2">
+        <div class="subconv-status">
+          <span class="subconv-dot" data-status-dot aria-hidden="true"></span>
+          <span class="subconv-status-text" data-status-text aria-live="polite">正在检查后端…</span>
+          <span class="subconv-status-sep" aria-hidden="true">/</span>
+          <a class="subconv-status-meta" data-status-version target="_blank" rel="noopener noreferrer">版本 —</a>
+          <span class="subconv-status-sep" aria-hidden="true">/</span>
+          <span class="subconv-status-meta" data-status-api>—</span>
+          <button type="button" class="subconv-mini-btn" data-status-refresh>刷新</button>
+        </div>
+        <p class="subconv-banner" data-api-banner hidden></p>
+
+        <form class="subconv-form" data-form novalidate>
           <div class="subconv-field">
-            <label for="subconv-target">目标客户端</label>
-            <select id="subconv-target" data-target>
-              {targets.map((t) => <option value={t.value}>{t.label}</option>)}
+            <div class="subconv-label-row">
+              <label for="subconv-urls">订阅链接 / 节点</label>
+              <button type="button" class="subconv-link-btn" data-import-toggle>导入已有转换链接</button>
+            </div>
+            <div class="subconv-import" data-import hidden>
+              <input type="text" data-import-input spellcheck="false" autocomplete="off" placeholder="粘贴之前生成的 …/sub?target=… 链接，自动回填下面的表单" aria-label="已有转换链接" />
+              <button type="button" class="subconv-mini-btn" data-import-apply>回填</button>
+            </div>
+            <textarea
+              id="subconv-urls"
+              data-urls
+              rows="4"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="https://example.com/api/v1/client/subscribe?token=...&#10;每行一个；也可以直接粘贴 ss:// / vmess:// / vless:// / trojan:// 节点"
+              required></textarea>
+            <p class="subconv-hint subconv-input-stats" data-input-stats aria-live="polite"></p>
+            <p class="subconv-hint">多行会用 <code>|</code> 合并后交给后端。Ctrl / ⌘ + Enter 直接生成。</p>
+          </div>
+
+          <aside class="subconv-callout" aria-labelledby="subconv-cfst-title">
+            <div class="subconv-callout-body">
+              <p class="micro-label">TOOLS // 优选器</p>
+              <h2 id="subconv-cfst-title">优选 IP 工具：CloudflareSpeedTest</h2>
+              <p>
+                由 XIU2 开发的开源测速工具，在<strong>你自己的电脑上</strong>测试 Cloudflare CDN 各 IP 的延迟和下载速度，找出在你当前网络下最快的「优选 IP」（支持 IPv4 / IPv6）。
+              </p>
+              <p class="subconv-callout-steps">
+                用法：下载对应系统的版本（Windows / Linux / macOS / 路由器），运行 <code>cfst</code>（Windows 双击 <code>cfst.exe</code>）；测完后 <code>result.csv</code> 第一行就是最快的 IP。把它填进节点的服务器地址（伪装域名 / SNI / Host 保持不变），或者用下方「CF 优选 IP 替换」批量生成。
+              </p>
+              <details class="subconv-callout-more">
+                <summary>注意事项</summary>
+                <ol>
+                  <li>请在平时上网的设备和网络下测速，并<strong>先关闭代理 / VPN</strong>；平均延迟只有 0.xx ms 说明测速走了代理，结果不能用。</li>
+                  <li>结果只对你当前的运营商、地区和时段有效，建议定期重测。</li>
+                  <li>不要在 VPS 上高并发运行（<code>-n</code> 默认 200），容易被当作扫描而被商家暂停服务。</li>
+                  <li>只适用于 TCP / HTTP，不适用于 WARP（UDP）。</li>
+                </ol>
+                <p class="subconv-callout-small">
+                  本站只提供订阅转换，不替你测速，也不提供任何 IP 列表。Cloudflare 明确禁止把 CDN 当作代理使用，相关风险由使用者自行承担。CloudflareSpeedTest 使用 GPL-3.0 许可证，版权归原作者所有。
+                </p>
+              </details>
+            </div>
+            <div class="subconv-callout-actions">
+              <a class="subconv-btn" href={CFST_REPO} target="_blank" rel="noopener noreferrer">打开优选器 ↗</a>
+              <a class="subconv-mini-btn" href={CFST_RELEASES} target="_blank" rel="noopener noreferrer">下载最新版 ↗</a>
+            </div>
+          </aside>
+
+          <details class="subconv-details" data-provider-details>
+            <summary>按订阅设置 Provider <span class="subconv-optional">可选</span></summary>
+            <div class="subconv-details-body">
+              <p class="subconv-hint">
+                为每条订阅单独命名、打标签、设置更新间隔。名称会成为 Mihomo 配置里的 Provider 名；更新间隔只对 Mihomo / ClashR / Stash / Surge / Quantumult X 生效；「直连下载」只对 Mihomo / ClashR 生效（默认不写 proxy 字段，由客户端按自身规则下载订阅）。
+              </p>
+              <div class="subconv-provider-list" data-provider-list>
+                <p class="subconv-hint" data-provider-empty>填入 http(s) 订阅链接后，这里会出现对应的设置行。</p>
+              </div>
+            </div>
+          </details>
+
+          <details class="subconv-details subconv-cfip" data-cfip-details>
+            <summary>CF 优选 IP 替换 <span class="subconv-optional">可选</span></summary>
+            <div class="subconv-details-body">
+              <p class="micro-label">CFIP // 优选替换</p>
+              <p class="subconv-callout-mini">
+                <strong>TOOLS // 优选器</strong>　还没有优选 IP？用
+                <a href={CFST_REPO} target="_blank" rel="noopener noreferrer">CloudflareSpeedTest ↗</a>（XIU2）在本地测速，测前请关闭代理；<code>result.csv</code> 可以直接粘贴到下面的框里。
+              </p>
+              <p class="subconv-hint">
+                把上面粘贴的 vmess / vless / trojan 节点，按每个优选地址各复制一份：服务器地址换成优选 IP，原域名保留为 Host / SNI，握手仍然到达你的 Cloudflare 源站。全部在浏览器内完成；订阅链接（http）不参与替换，照常交给后端。
+              </p>
+              <label class="subconv-toggle subconv-toggle-strong">
+                <input type="checkbox" data-cfip-enable />
+                <span>启用优选替换</span>
+              </label>
+              <div class="subconv-field">
+                <label for="subconv-cfip-endpoints">优选地址</label>
+                <textarea
+                  id="subconv-cfip-endpoints"
+                  data-cfip-endpoints
+                  rows="4"
+                  spellcheck="false"
+                  autocomplete="off"
+                  placeholder="每行一个：1.2.3.4、1.2.3.4:2053、edge.example.com:8443#备注、[2606:4700::]:443&#10;也可以直接粘贴 CloudflareSpeedTest 的 result.csv"></textarea>
+              </div>
+              <div class="subconv-grid-2">
+                <div class="subconv-field">
+                  <label for="subconv-cfip-prefix">节点名前缀 <span class="subconv-optional">可选</span></label>
+                  <input id="subconv-cfip-prefix" data-cfip-prefix type="text" spellcheck="false" placeholder="例如：优选" />
+                </div>
+                <div class="subconv-field subconv-field-check">
+                  <label class="subconv-toggle">
+                    <input type="checkbox" data-cfip-keep checked />
+                    <span>保留原节点 Host / SNI（推荐）</span>
+                  </label>
+                  <button type="button" class="subconv-link-btn" data-cfip-demo>填入演示数据</button>
+                </div>
+              </div>
+              <div class="subconv-stats" data-cfip-stats></div>
+              <ul class="subconv-warnings" data-cfip-warnings hidden></ul>
+              <div class="subconv-table-wrap" data-cfip-preview hidden>
+                <table class="subconv-table">
+                  <caption>预览（前 20 条）</caption>
+                  <thead><tr><th>名称</th><th>协议</th><th>地址</th><th>端口</th><th>Host</th><th>SNI</th></tr></thead>
+                  <tbody data-cfip-rows></tbody>
+                </table>
+              </div>
+              <p class="subconv-hint subconv-hint-warn">
+                展开后的节点（含 UUID / 密码）会写进生成链接的 URL 参数里，请勿公开分享生成的链接。
+              </p>
+            </div>
+          </details>
+
+          <div class="subconv-grid-2">
+            <div class="subconv-field">
+              <label for="subconv-target">目标客户端</label>
+              <select id="subconv-target" data-target>
+                {targetGroups.map((g) => (
+                  <optgroup label={g.label}>
+                    {g.items.map((t) => <option value={t.value} selected={t.value === 'clash'}>{t.label}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+              <p class="subconv-hint" data-target-hint></p>
+            </div>
+            <div class="subconv-field" data-surge-field hidden>
+              <label for="subconv-surge-ver">Surge 版本</label>
+              <select id="subconv-surge-ver" data-surge-ver>
+                <option value="5" selected>Surge 5</option>
+                <option value="4">Surge 4</option>
+                <option value="3">Surge 3</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="subconv-field">
+            <label for="subconv-config-preset">外部配置 / 模板</label>
+            <select id="subconv-config-preset" data-config-preset>
+              {configPresets.map((p) => <option value={p.value}>{p.label}</option>)}
             </select>
-            <p class="subconv-hint">Mihomo / Clash 默认以 Proxy Provider 输出。</p>
+            <input
+              id="subconv-config"
+              data-config
+              type="url"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="https://…/xxx.ini"
+              aria-label="自定义外部配置 URL"
+              hidden />
           </div>
-          <div class="subconv-field" data-surge-field hidden>
-            <label for="subconv-surge-ver">Surge 版本</label>
-            <select id="subconv-surge-ver" data-surge-ver>
-              <option value="">默认（3）</option>
-              <option value="4">Surge 4</option>
-              <option value="5">Surge 5</option>
-            </select>
+
+          <details class="subconv-details">
+            <summary>高级选项</summary>
+            <div class="subconv-details-body">
+              <div class="subconv-grid-2">
+                <div class="subconv-field">
+                  <label for="subconv-include">包含节点（正则）</label>
+                  <input id="subconv-include" data-include data-regex type="text" spellcheck="false" placeholder="例如：香港|HK" />
+                </div>
+                <div class="subconv-field">
+                  <label for="subconv-exclude">排除节点（正则）</label>
+                  <input id="subconv-exclude" data-exclude data-regex type="text" spellcheck="false" placeholder="例如：到期|剩余流量|官网" />
+                </div>
+              </div>
+
+              <div class="subconv-grid-2">
+                <div class="subconv-field">
+                  <label for="subconv-rename">重命名规则</label>
+                  <input id="subconv-rename" data-rename type="text" spellcheck="false" placeholder="旧@新`旧2@新2" />
+                  <p class="subconv-hint">格式「正则@替换」，多条用反引号 <code>`</code> 分隔。</p>
+                </div>
+                <div class="subconv-field">
+                  <label for="subconv-interval">托管配置更新间隔</label>
+                  <select id="subconv-interval" data-interval>
+                    {intervals.map((i) => <option value={i.value}>{i.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div class="subconv-grid-2">
+                <div class="subconv-field">
+                  <label for="subconv-filename">输出文件名 <span class="subconv-optional">可选</span></label>
+                  <input id="subconv-filename" data-filename type="text" spellcheck="false" placeholder="例如：my-sub" />
+                </div>
+                <div class="subconv-field">
+                  <p class="subconv-hint subconv-hint-tight">
+                    客户端拉取订阅时会用它自己的 User-Agent；选择「自动识别」可以让同一条链接按客户端输出对应格式。
+                  </p>
+                </div>
+              </div>
+
+              <div class="subconv-toggles">
+                <label class="subconv-toggle"><input type="checkbox" data-param="sort" /><span>按名称排序</span></label>
+                <label class="subconv-toggle"><input type="checkbox" data-param="fdn" /><span>过滤弃用节点</span></label>
+                <label class="subconv-toggle"><input type="checkbox" data-param="udp" /><span>强制启用 UDP</span></label>
+                <label class="subconv-toggle"><input type="checkbox" data-param="tfo" /><span>启用 TCP Fast Open</span></label>
+                <label class="subconv-toggle"><input type="checkbox" data-param="scv" /><span>跳过证书校验</span></label>
+                <label class="subconv-toggle"><input type="checkbox" data-param="tls13" /><span>启用 TLS 1.3</span></label>
+                <label class="subconv-toggle"><input type="checkbox" data-param="append_type" /><span>节点名附加类型</span></label>
+                <label class="subconv-toggle"><input type="checkbox" data-param="expand" /><span>展开规则集</span></label>
+                <label class="subconv-toggle"><input type="checkbox" data-param="classic" /><span>经典规则集</span></label>
+                <label class="subconv-toggle"><input type="checkbox" data-param="append_info" /><span>附带流量 / 到期信息</span></label>
+                <label class="subconv-toggle" data-only="surge surfboard" hidden><input type="checkbox" data-param="strict" /><span>托管配置严格更新</span></label>
+                <label class="subconv-toggle" data-only="clash clashr" hidden><input type="checkbox" data-provider-proxy /><span>所有 Provider 强制直连下载（写入 proxy: DIRECT）</span></label>
+                <label class="subconv-toggle" data-list-toggle><input type="checkbox" data-force-list /><span>当前目标由后端解析节点（list=true，会由服务器拉取你的订阅）</span></label>
+                <label class="subconv-toggle is-disabled" title="服务端 emojis.enabled 未开启，该参数会被忽略"><input type="checkbox" disabled /><span>节点名添加 Emoji <em>（服务端未启用）</em></span></label>
+              </div>
+
+              <label class="subconv-toggle subconv-remember">
+                <input type="checkbox" data-remember-urls />
+                <span>在本设备记住订阅链接（默认只记住选项，不记链接）</span>
+              </label>
+            </div>
+          </details>
+
+          <div class="subconv-actions">
+            <button class="subconv-btn primary" type="submit" data-submit>
+              <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M13 3 5 13h6l-1 8 8-10h-6z" /></svg>
+              <span>生成配置</span>
+            </button>
+            <button class="subconv-btn" type="button" data-cancel hidden>取消</button>
+            <button class="subconv-btn" type="reset" data-reset>重置</button>
           </div>
-        </div>
+        </form>
 
-        <div class="subconv-field">
-          <label for="subconv-config">外部配置 / 模板 <span class="subconv-optional">可选</span></label>
-          <input
-            id="subconv-config"
-            data-config
-            type="text"
-            spellcheck="false"
-            autocomplete="off"
-            placeholder="留空则使用服务端默认模板" />
-          <button type="button" class="subconv-link-btn" data-fill-template>
-            填入 Custom_OpenClash_Rules 模板
-          </button>
-        </div>
+        <div class="subconv-error" data-error hidden role="alert"></div>
 
-        <details class="subconv-details">
-          <summary>高级选项</summary>
-          <div class="subconv-details-body">
-            <div class="subconv-grid-2">
-              <div class="subconv-field">
-                <label for="subconv-include">包含节点（正则）</label>
-                <input id="subconv-include" data-include type="text" spellcheck="false" placeholder="例如：香港|HK" />
-              </div>
-              <div class="subconv-field">
-                <label for="subconv-exclude">排除节点（正则）</label>
-                <input id="subconv-exclude" data-exclude type="text" spellcheck="false" placeholder="例如：到期|剩余流量|官网" />
-              </div>
+        <section class="subconv-result" data-result hidden>
+          <div class="subconv-result-head">
+            <div>
+              <p class="micro-label">RESULT // 结果</p>
+              <h2>客户端订阅</h2>
             </div>
-
-            <div class="subconv-grid-2">
-              <div class="subconv-field">
-                <label for="subconv-rename">重命名规则</label>
-                <input id="subconv-rename" data-rename type="text" spellcheck="false" placeholder="正则@替换" />
-              </div>
-              <div class="subconv-field">
-                <label for="subconv-interval">更新间隔（小时）</label>
-                <input id="subconv-interval" data-interval type="number" min="1" step="1" placeholder="例如：24" />
-              </div>
-            </div>
-
-            <div class="subconv-grid-2">
-              <div class="subconv-field">
-                <label for="subconv-filename">输出文件名 <span class="subconv-optional">可选</span></label>
-                <input id="subconv-filename" data-filename type="text" spellcheck="false" placeholder="例如：my-sub" />
-              </div>
-              <div class="subconv-field">
-                <label for="subconv-ua">User-Agent <span class="subconv-optional">可选</span></label>
-                <input id="subconv-ua" data-ua type="text" spellcheck="false" placeholder="留空按目标客户端自动选择" />
-              </div>
-            </div>
-
-            <div class="subconv-toggles">
-              <label class="subconv-toggle"><input type="checkbox" data-param="emoji" checked /><span>节点名添加 Emoji</span></label>
-              <label class="subconv-toggle"><input type="checkbox" data-param="sort" /><span>按名称排序</span></label>
-              <label class="subconv-toggle"><input type="checkbox" data-param="fdn" /><span>过滤弃用节点</span></label>
-              <label class="subconv-toggle"><input type="checkbox" data-param="udp" /><span>强制启用 UDP</span></label>
-              <label class="subconv-toggle"><input type="checkbox" data-param="tfo" /><span>启用 TCP Fast Open</span></label>
-              <label class="subconv-toggle"><input type="checkbox" data-param="scv" /><span>跳过证书校验</span></label>
-              <label class="subconv-toggle"><input type="checkbox" data-param="tls13" /><span>启用 TLS 1.3</span></label>
-              <label class="subconv-toggle"><input type="checkbox" data-param="append_type" /><span>节点名附加类型</span></label>
-              <label class="subconv-toggle"><input type="checkbox" data-param="expand" /><span>展开规则集</span></label>
-              <label class="subconv-toggle"><input type="checkbox" data-param="classic" /><span>经典规则集</span></label>
-              <label class="subconv-toggle"><input type="checkbox" data-param="list" /><span>仅输出节点列表</span></label>
-            </div>
+            <span class="subconv-result-note" data-result-note></span>
           </div>
-        </details>
 
-        <div class="subconv-actions">
-          <button class="subconv-btn primary" type="submit" data-submit>
-            <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M13 3 5 13h6l-1 8 8-10h-6z" /></svg>
-            <span>生成配置</span>
-          </button>
-          <button class="subconv-btn" type="reset" data-reset>重置</button>
-        </div>
-      </form>
+          <div class="subconv-stats" data-stats></div>
+          <p class="subconv-hint subconv-guide">
+            选哪个：Clash Verge / Mihomo Party / OpenClash → <b>Mihomo</b>；v2rayN / NekoBox → <b>通用 Base64</b>；小火箭 → <b>Shadowrocket</b>；Surge → <b>Surge</b>（默认 Surge 5）。
+          </p>
+          <div class="subconv-card-grid" data-cards></div>
 
-      <p class="subconv-error" data-error hidden></p>
+          <details class="subconv-details subconv-diagnostic" data-diagnostic hidden>
+            <summary data-diagnostic-summary>诊断信息</summary>
+            <div class="subconv-details-body" data-diagnostic-body></div>
+          </details>
 
-      <section class="subconv-result" data-result hidden>
-        <div class="subconv-result-head">
-          <div>
-            <p class="micro-label">RESULT // 结果</p>
-            <h2>客户端订阅</h2>
+          <div class="subconv-preview-head">
+            <span class="subconv-preview-title">内容预览 <em data-preview-label></em></span>
+            <span class="subconv-preview-actions">
+              <button type="button" class="subconv-mini-btn" data-preview-load>加载预览</button>
+              <button type="button" class="subconv-mini-btn" data-copy-content disabled>复制内容</button>
+            </span>
           </div>
-          <span class="subconv-result-note" data-result-note></span>
-        </div>
-
-        <div class="subconv-stats" data-stats></div>
-        <div class="subconv-card-grid" data-cards></div>
-
-        <details class="subconv-details subconv-diagnostic" data-diagnostic hidden>
-          <summary>诊断信息</summary>
-          <pre class="subconv-diagnostic-pre" data-diagnostic-pre></pre>
-        </details>
-
-        <div class="subconv-preview-head">
-          <span class="subconv-preview-title">内容预览 <em data-preview-label></em></span>
-          <button type="button" class="subconv-mini-btn" data-copy-content>复制内容</button>
-        </div>
-        <pre class="subconv-preview"><code data-preview></code></pre>
-      </section>
+          <pre class="subconv-preview"><code data-preview>点「加载预览」或卡片上的「预览」查看生成内容。</code></pre>
+        </section>
 
         <p class="subconv-footnote">
-          后端：自建 SubConverter-Extended · 经 <code>dev-blog.u3924624.nyat.app:44295</code> 统一网关访问。
-          公共链接包含订阅参数，请勿公开分享。
+          后端：自建 SubConverter-Extended，经 <code>dev-blog.u3924624.nyat.app:44295</code> 统一网关访问。
+          本页不保存你的链接（除非你勾选「记住订阅链接」，只存在本机浏览器）；但转换请求以 URL 参数发送到自建后端，可能出现在服务器访问日志中。
+          生成的链接含你的订阅凭据，请勿公开分享。
         </p>
       </div>
 
-      <div class="subconv-qr-modal" data-qr-modal hidden aria-hidden="true">
-        <div class="subconv-qr-backdrop" data-qr-close></div>
-        <div class="subconv-qr-dialog" role="dialog" aria-modal="true" aria-labelledby="subconv-qr-title">
-          <div class="subconv-qr-head">
-            <div>
-              <p class="micro-label">QR // 扫码导入</p>
-              <h2 id="subconv-qr-title">订阅二维码</h2>
-            </div>
-            <button type="button" class="subconv-mini-btn" data-qr-close>关闭</button>
+      <dialog class="subconv-qr-dialog" data-qr-dialog aria-labelledby="subconv-qr-title">
+        <div class="subconv-qr-head">
+          <div>
+            <p class="micro-label">QR // 扫码导入</p>
+            <h2 id="subconv-qr-title">订阅二维码</h2>
           </div>
-          <div class="subconv-qr-canvas" data-qr-canvas></div>
-          <p class="subconv-qr-url" data-qr-url></p>
+          <button type="button" class="subconv-mini-btn" data-qr-close>关闭</button>
         </div>
-      </div>
+        <div class="subconv-qr-canvas" data-qr-canvas></div>
+        <p class="subconv-qr-url" data-qr-url></p>
+      </dialog>
     </div>
   </section>
 </BaseLayout>
 
 <script>
   import qrcode from 'qrcode-generator';
+  import { parseEndpoints, parseNodes, expandNodes, buildUrlParam, b64decode } from '../../lib/cfip';
+
+  // ---------- 常量 ----------
+  const DEFAULT_API = 'https://dev-blog.u3924624.nyat.app:44295/subconv';
+  const PREFS_KEY = 'subconv-prefs-v2';
+  const HEALTH_TIMEOUT = 8000;
+  const CONVERT_TIMEOUT = 45000;
+  const URL_WARN = 8 * 1024;
+  const URL_BLOCK = 16 * 1024;
 
   const TARGET_LABELS: Record<string, string> = {
+    auto: '自动识别',
     clash: 'Mihomo / Clash',
     clashr: 'ClashR',
     stash: 'Stash',
@@ -226,53 +417,55 @@ const targets = [
     loon: 'Loon',
     mellow: 'Mellow',
     shadowrocket: 'Shadowrocket',
-    v2ray: 'V2Ray',
-    ssr: 'SSR',
+    mixed: '通用 Base64',
+    v2rayn: 'v2rayN',
+    v2rayng: 'v2rayNG',
+    sssub: 'SS 订阅',
+    ssd: 'SSD',
     ss: 'SS',
+    ssr: 'SSR',
+    v2ray: 'V2Ray',
+    trojan: 'Trojan',
+    vless: 'VLESS',
+    hysteria2: 'Hysteria2',
   };
-
   const EXTENSIONS: Record<string, string> = {
-    clash: 'yaml',
-    clashr: 'yaml',
-    stash: 'yaml',
-    surge: 'conf',
-    surfboard: 'conf',
-    loon: 'conf',
-    quanx: 'conf',
-    quan: 'conf',
-    mellow: 'conf',
-    singbox: 'json',
+    clash: 'yaml', clashr: 'yaml', stash: 'yaml',
+    surge: 'conf', surfboard: 'conf', loon: 'conf', quanx: 'conf', quan: 'conf', mellow: 'conf',
+    singbox: 'json', sssub: 'json',
   };
-
+  /** 结果卡片：Shadowrocket 用它自己的原生订阅格式（不加 list），另给一张通用 Base64 */
   const CARDS = [
-    { target: 'clash', label: 'Mihomo / Clash', tag: 'CLASH' },
+    { target: 'clash', label: 'Mihomo / Clash', tag: 'MIHOMO' },
+    { target: 'stash', label: 'Stash', tag: 'STASH' },
     { target: 'surge', label: 'Surge', tag: 'SURGE' },
     { target: 'surfboard', label: 'Surfboard', tag: 'SURFBOARD' },
     { target: 'singbox', label: 'sing-box', tag: 'SING-BOX' },
     { target: 'quanx', label: 'Quantumult X', tag: 'QUANX' },
     { target: 'loon', label: 'Loon', tag: 'LOON' },
-    { target: 'stash', label: 'Stash', tag: 'STASH' },
-    { target: 'shadowrocket', label: '节点链接列表', tag: 'LINKS', list: true },
+    { target: 'shadowrocket', label: 'Shadowrocket', tag: 'ROCKET' },
+    { target: 'mixed', label: '通用 Base64（v2rayN / NekoBox）', tag: 'BASE64' },
   ];
+  /** per-URL interval: 只有这些目标接受（loon / surfboard 等会直接 400） */
+  const INTERVAL_TARGETS = new Set(['clash', 'clashr', 'quanx', 'surge', 'stash']);
+  const PROXY_DIRECT_TARGETS = new Set(['clash', 'clashr']);
+  const NODE_SCHEMES = /^(ss|ssr|vmess|vless|trojan|hysteria2?|hy2|tuic|anytls|socks5?|http|https|snell|wireguard|juicity|mieru)$/i;
 
-  const TEMPLATE_URL =
-    'https://testingcf.jsdelivr.net/gh/Aethersailor/Custom_OpenClash_Rules@refs/heads/main/cfg/Custom_Clash.ini';
+  type Explain = { status: number; json: Record<string, any> | null; text?: string; requestId?: string | null };
+  type ProviderSetting = { name: string; tag: string; interval: string; direct: '' | 'true' | 'false' };
 
+  // ---------- 小工具 ----------
   function showToast(message: string, type: 'ok' | 'err' = 'ok') {
     const host = window as unknown as { showToast?: (m: string, t?: 'ok' | 'err') => void };
-    if (host.showToast) host.showToast(message, type);
+    host.showToast?.(message, type);
   }
-
   function copyFallback(text: string): boolean {
     try {
       const area = document.createElement('textarea');
       area.value = text;
       area.setAttribute('readonly', '');
-      area.style.position = 'fixed';
-      area.style.top = '-9999px';
-      area.style.left = '-9999px';
+      area.style.cssText = 'position:fixed;top:-9999px;left:-9999px';
       document.body.appendChild(area);
-      area.focus();
       area.select();
       const ok = document.execCommand('copy');
       area.remove();
@@ -281,140 +474,379 @@ const targets = [
       return false;
     }
   }
-
   async function copyText(text: string, label = '内容') {
     if (!text) return;
     try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-      } else if (!copyFallback(text)) {
-        throw new Error('copy failed');
-      }
+      if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+      else if (!copyFallback(text)) throw new Error('copy failed');
       showToast(`${label}已复制`, 'ok');
     } catch {
       showToast('复制失败，请手动选择文本', 'err');
     }
   }
-
   function formatBytes(size: number): string {
     if (size < 1024) return `${size} B`;
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
     return `${(size / 1024 / 1024).toFixed(2)} MB`;
   }
-
-  function normalizeApi(value: string): string {
-    return value.trim().replace(/\/+$/, '');
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
   }
-
-  function resolveApi(root: HTMLElement): string {
-    const override = new URLSearchParams(window.location.search).get('api');
-    const candidate = normalizeApi(override || root.dataset.api || 'https://dev-blog.u3924624.nyat.app:44295/subconv');
+  function readPrefs(): Record<string, any> {
     try {
-      const parsed = new URL(candidate);
-      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return candidate;
+      return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') || {};
     } catch {
-      /* ignore */
+      return {};
     }
-    return 'https://dev-blog.u3924624.nyat.app:44295/subconv';
+  }
+  function writePrefs(prefs: Record<string, any>) {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    } catch {
+      /* 隐私模式：不记忆即可 */
+    }
   }
 
-  function clearTimer() {
-    const host = window as unknown as { __subconvStatusTimer?: number };
-    if (host.__subconvStatusTimer) {
-      window.clearInterval(host.__subconvStatusTimer);
-      host.__subconvStatusTimer = undefined;
+  /**
+   * 后端地址白名单：?api= 只接受默认后端和本机调试地址。
+   * 原来接受任意 URL——别人可以构造一个「看起来是本站」的链接，把访问者的订阅发到第三方服务器。
+   */
+  function resolveApi(root: HTMLElement): { api: string; notice: string; danger: boolean } {
+    const fallback = (root.dataset.api || DEFAULT_API).replace(/\/+$/, '');
+    const override = new URLSearchParams(window.location.search).get('api');
+    if (!override) return { api: fallback, notice: '', danger: false };
+    try {
+      const parsed = new URL(override.trim());
+      const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(parsed.hostname);
+      const normalized = override.trim().replace(/\/+$/, '');
+      if (normalized === fallback) return { api: fallback, notice: '', danger: false };
+      if (local && /^https?:$/.test(parsed.protocol)) {
+        return { api: normalized, notice: `当前使用非默认后端：${normalized}（本机调试）`, danger: false };
+      }
+    } catch {
+      /* 落到下面的拒绝提示 */
     }
+    return { api: fallback, notice: `已忽略不可信的后端参数 api=${override.slice(0, 80)}，仍使用本站后端。`, danger: true };
+  }
+
+  function lineKind(line: string): 'sub' | 'node' | 'unknown' {
+    if (/^https?:\/\//i.test(line)) return 'sub';
+    const m = /^([a-z][a-z0-9+.-]*):\/\//i.exec(line);
+    if (m && NODE_SCHEMES.test(m[1])) return 'node';
+    // 整段 base64（订阅内容直接粘贴）
+    if (/^[A-Za-z0-9+/=_-]{40,}$/.test(line)) return 'node';
+    return 'unknown';
+  }
+  /** 订阅链接里的 token 只显示首尾，设置行里不把完整凭据摊在页面上 */
+  function maskUrl(url: string): string {
+    try {
+      const u = new URL(url);
+      const q = u.search.length > 18 ? `${u.search.slice(0, 10)}…${u.search.slice(-4)}` : u.search;
+      return `${u.host}${u.pathname.length > 24 ? u.pathname.slice(0, 22) + '…' : u.pathname}${q}`;
+    } catch {
+      return url.slice(0, 40);
+    }
+  }
+
+  let statusTimer = 0;
+  function clearStatusTimer() {
+    if (statusTimer) window.clearInterval(statusTimer);
+    statusTimer = 0;
   }
 
   function init() {
     const root = document.querySelector<HTMLElement>('[data-subconv]');
     if (!root) {
-      clearTimer();
+      clearStatusTimer();
       return;
     }
     if (root.dataset.bound === '1') return;
     root.dataset.bound = '1';
 
-    const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector);
-    const api = resolveApi(root);
+    const $ = <T extends Element>(selector: string) => root.querySelector<T>(selector)!;
+    const { api, notice, danger } = resolveApi(root);
 
-    const form = $<HTMLFormElement>('[data-form]')!;
-    const urlsInput = $<HTMLTextAreaElement>('[data-urls]')!;
-    const targetSelect = $<HTMLSelectElement>('[data-target]')!;
-    const surgeField = $<HTMLElement>('[data-surge-field]')!;
-    const surgeVer = $<HTMLSelectElement>('[data-surge-ver]')!;
-    const configInput = $<HTMLInputElement>('[data-config]')!;
-    const includeInput = $<HTMLInputElement>('[data-include]')!;
-    const excludeInput = $<HTMLInputElement>('[data-exclude]')!;
-    const renameInput = $<HTMLInputElement>('[data-rename]')!;
-    const intervalInput = $<HTMLInputElement>('[data-interval]')!;
-    const filenameInput = $<HTMLInputElement>('[data-filename]')!;
-    const uaInput = $<HTMLInputElement>('[data-ua]')!;
-    const submitBtn = $<HTMLButtonElement>('[data-submit]')!;
-    const resetBtn = $<HTMLButtonElement>('[data-reset]')!;
-    const fillTemplateBtn = $<HTMLButtonElement>('[data-fill-template]')!;
-    const errorBox = $<HTMLElement>('[data-error]')!;
-    const result = $<HTMLElement>('[data-result]')!;
-    const resultNote = $<HTMLElement>('[data-result-note]')!;
-    const statsBox = $<HTMLElement>('[data-stats]')!;
-    const cardsBox = $<HTMLElement>('[data-cards]')!;
-    const diagnostic = $<HTMLDetailsElement>('[data-diagnostic]')!;
-    const diagnosticPre = $<HTMLElement>('[data-diagnostic-pre]')!;
-    const preview = $<HTMLElement>('[data-preview]')!;
-    const previewLabel = $<HTMLElement>('[data-preview-label]')!;
-    const copyContentBtn = $<HTMLButtonElement>('[data-copy-content]')!;
-    const statusDot = $<HTMLElement>('[data-status-dot]')!;
-    const statusText = $<HTMLElement>('[data-status-text]')!;
-    const statusVersion = $<HTMLElement>('[data-status-version]')!;
-    const statusApi = $<HTMLElement>('[data-status-api]')!;
-    const statusRefresh = $<HTMLButtonElement>('[data-status-refresh]')!;
-    const qrModal = $<HTMLElement>('[data-qr-modal]')!;
-    const qrCanvas = $<HTMLElement>('[data-qr-canvas]')!;
-    const qrUrlText = $<HTMLElement>('[data-qr-url]')!;
+    const form = $<HTMLFormElement>('[data-form]');
+    const urlsInput = $<HTMLTextAreaElement>('[data-urls]');
+    const inputStats = $<HTMLElement>('[data-input-stats]');
+    const targetSelect = $<HTMLSelectElement>('[data-target]');
+    const targetHint = $<HTMLElement>('[data-target-hint]');
+    const surgeField = $<HTMLElement>('[data-surge-field]');
+    const surgeVer = $<HTMLSelectElement>('[data-surge-ver]');
+    const configPreset = $<HTMLSelectElement>('[data-config-preset]');
+    const configInput = $<HTMLInputElement>('[data-config]');
+    const includeInput = $<HTMLInputElement>('[data-include]');
+    const excludeInput = $<HTMLInputElement>('[data-exclude]');
+    const renameInput = $<HTMLInputElement>('[data-rename]');
+    const intervalSelect = $<HTMLSelectElement>('[data-interval]');
+    const filenameInput = $<HTMLInputElement>('[data-filename]');
+    const providerProxy = $<HTMLInputElement>('[data-provider-proxy]');
+    const forceList = $<HTMLInputElement>('[data-force-list]');
+    const rememberUrls = $<HTMLInputElement>('[data-remember-urls]');
+    const providerList = $<HTMLElement>('[data-provider-list]');
+    const providerEmpty = $<HTMLElement>('[data-provider-empty]');
+    const providerDetails = $<HTMLDetailsElement>('[data-provider-details]');
+    const cfipDetails = $<HTMLDetailsElement>('[data-cfip-details]');
+    const cfipEnable = $<HTMLInputElement>('[data-cfip-enable]');
+    const cfipEndpoints = $<HTMLTextAreaElement>('[data-cfip-endpoints]');
+    const cfipPrefix = $<HTMLInputElement>('[data-cfip-prefix]');
+    const cfipKeep = $<HTMLInputElement>('[data-cfip-keep]');
+    const cfipStats = $<HTMLElement>('[data-cfip-stats]');
+    const cfipWarnings = $<HTMLElement>('[data-cfip-warnings]');
+    const cfipPreview = $<HTMLElement>('[data-cfip-preview]');
+    const cfipRows = $<HTMLElement>('[data-cfip-rows]');
+    const submitBtn = $<HTMLButtonElement>('[data-submit]');
+    const cancelBtn = $<HTMLButtonElement>('[data-cancel]');
+    const resetBtn = $<HTMLButtonElement>('[data-reset]');
+    const errorBox = $<HTMLElement>('[data-error]');
+    const result = $<HTMLElement>('[data-result]');
+    const resultNote = $<HTMLElement>('[data-result-note]');
+    const statsBox = $<HTMLElement>('[data-stats]');
+    const cardsBox = $<HTMLElement>('[data-cards]');
+    const diagnostic = $<HTMLDetailsElement>('[data-diagnostic]');
+    const diagnosticSummary = $<HTMLElement>('[data-diagnostic-summary]');
+    const diagnosticBody = $<HTMLElement>('[data-diagnostic-body]');
+    const preview = $<HTMLElement>('[data-preview]');
+    const previewLabel = $<HTMLElement>('[data-preview-label]');
+    const previewLoadBtn = $<HTMLButtonElement>('[data-preview-load]');
+    const copyContentBtn = $<HTMLButtonElement>('[data-copy-content]');
+    const statusDot = $<HTMLElement>('[data-status-dot]');
+    const statusText = $<HTMLElement>('[data-status-text]');
+    const statusVersion = $<HTMLAnchorElement>('[data-status-version]');
+    const statusApi = $<HTMLElement>('[data-status-api]');
+    const statusRefresh = $<HTMLButtonElement>('[data-status-refresh]');
+    const apiBanner = $<HTMLElement>('[data-api-banner]');
+    const importToggle = $<HTMLButtonElement>('[data-import-toggle]');
+    const importBox = $<HTMLElement>('[data-import]');
+    const importInput = $<HTMLInputElement>('[data-import-input]');
+    const importApply = $<HTMLButtonElement>('[data-import-apply]');
+    const qrDialog = $<HTMLDialogElement>('[data-qr-dialog]');
+    const qrCanvas = $<HTMLElement>('[data-qr-canvas]');
+    const qrUrlText = $<HTMLElement>('[data-qr-url]');
 
+    /** 生成内容缓存：键是完整请求 URL（参数一变就是新键，不会拿到旧结果） */
     const contentCache = new Map<string, string>();
+    const providerSettings = new Map<string, ProviderSetting>();
     let lastContent = '';
     let lastContentLabel = '';
+    let lastExplain: Explain | null = null;
+    let running: AbortController | null = null;
+    let qrReturnFocus: HTMLElement | null = null;
 
     statusApi.textContent = api.replace(/^https?:\/\//, '');
-
-    function updateSurgeField() {
-      surgeField.hidden = targetSelect.value !== 'surge';
+    statusVersion.href = `${api}/version`;
+    if (notice) {
+      apiBanner.textContent = notice;
+      apiBanner.classList.toggle('is-danger', danger);
+      apiBanner.hidden = false;
     }
 
-    function baseParams(): Record<string, string> {
-      const urls = urlsInput.value
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .join('|');
-      const params: Record<string, string> = { url: urls };
+    // ---------- 输入解析 ----------
+    function lines(): string[] {
+      return urlsInput.value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    }
 
+    function updateInputStats() {
+      const all = lines();
+      let subs = 0;
+      let nodes = 0;
+      const unknown: number[] = [];
+      all.forEach((line, i) => {
+        const kind = lineKind(line);
+        if (kind === 'sub') subs++;
+        else if (kind === 'node') nodes++;
+        else unknown.push(i + 1);
+      });
+      if (!all.length) {
+        inputStats.textContent = '';
+        return;
+      }
+      const parts = [`订阅 ${subs}`, `节点 ${nodes}`];
+      if (unknown.length) parts.push(`无法识别 ${unknown.length}（第 ${unknown.slice(0, 5).join('、')}${unknown.length > 5 ? '…' : ''} 行）`);
+      inputStats.textContent = parts.join(' · ');
+      inputStats.classList.toggle('is-warn', unknown.length > 0);
+    }
+
+    // ---------- 按订阅设置 Provider ----------
+    function renderProviderRows() {
+      const subs = lines().filter((l) => lineKind(l) === 'sub');
+      for (const key of [...providerSettings.keys()]) if (!subs.includes(key)) providerSettings.delete(key);
+      providerList.querySelectorAll('.subconv-provider-row').forEach((row) => row.remove());
+      providerEmpty.hidden = subs.length > 0;
+      const allowInterval = INTERVAL_TARGETS.has(targetSelect.value);
+      const allowDirect = PROXY_DIRECT_TARGETS.has(targetSelect.value);
+      subs.forEach((url, i) => {
+        const setting = providerSettings.get(url) ?? { name: '', tag: '', interval: '', direct: '' };
+        providerSettings.set(url, setting);
+        const row = el('div', 'subconv-provider-row');
+        const title = el('span', 'subconv-provider-url', `${i + 1}. ${maskUrl(url)}`);
+        title.title = '订阅地址（已隐藏部分参数）';
+
+        const name = el('input') as HTMLInputElement;
+        name.type = 'text';
+        name.placeholder = '名称，例如 HK';
+        name.value = setting.name;
+        name.setAttribute('aria-label', `第 ${i + 1} 条订阅的 Provider 名称`);
+        name.addEventListener('input', () => {
+          // 名称会写进 provider: 前缀，逗号和竖线会破坏后端的解析
+          name.value = name.value.replace(/[,|`\s]/g, '');
+          setting.name = name.value;
+        });
+
+        const tag = el('input') as HTMLInputElement;
+        tag.type = 'text';
+        tag.placeholder = '标签（可选）';
+        tag.value = setting.tag;
+        tag.setAttribute('aria-label', `第 ${i + 1} 条订阅的标签`);
+        tag.addEventListener('input', () => {
+          tag.value = tag.value.replace(/[,|`\s]/g, '');
+          setting.tag = tag.value;
+        });
+
+        const interval = el('select') as HTMLSelectElement;
+        interval.setAttribute('aria-label', `第 ${i + 1} 条订阅的更新间隔`);
+        [['', '间隔：默认'], ['21600', '6 小时'], ['43200', '12 小时'], ['86400', '24 小时'], ['259200', '3 天'], ['604800', '7 天']].forEach(([v, t]) => {
+          const o = el('option', undefined, t) as HTMLOptionElement;
+          o.value = v;
+          interval.appendChild(o);
+        });
+        // 导入的链接里可能有不在预设里的间隔：补一个选项显示出来，界面与实际发送的值一致
+        if (setting.interval && ![...interval.options].some((o) => o.value === setting.interval)) {
+          const o = el('option', undefined, `${Math.round(Number(setting.interval) / 360) / 10} 小时`) as HTMLOptionElement;
+          o.value = setting.interval;
+          interval.appendChild(o);
+        }
+        interval.value = setting.interval;
+        interval.disabled = !allowInterval;
+        interval.title = allowInterval ? '' : '当前目标不支持按订阅设置更新间隔';
+        interval.addEventListener('change', () => (setting.interval = interval.value));
+
+        const direct = el('select') as HTMLSelectElement;
+        direct.setAttribute('aria-label', `第 ${i + 1} 条订阅的下载方式`);
+        // 实测后端默认不写 proxy 字段，proxy_direct:false 与默认完全相同，所以只提供「强制直连」
+        [['', '下载：默认'], ['true', '强制直连（proxy: DIRECT）']].forEach(([v, t]) => {
+          const o = el('option', undefined, t) as HTMLOptionElement;
+          o.value = v;
+          direct.appendChild(o);
+        });
+        direct.value = setting.direct;
+        direct.disabled = !allowDirect;
+        direct.title = allowDirect ? '' : '只对 Mihomo / ClashR 生效';
+        direct.addEventListener('change', () => (setting.direct = direct.value as ProviderSetting['direct']));
+
+        row.append(title, name, tag, interval, direct);
+        providerList.appendChild(row);
+      });
+    }
+
+    /** 把 provider:/tag:/interval:/proxy_direct: 前缀拼到订阅链接前面（按目标过滤不支持的前缀） */
+    function prefixed(url: string, target: string): string {
+      const s = providerSettings.get(url);
+      if (!s) return url;
+      const parts: string[] = [];
+      if (s.name) parts.push(`provider:${s.name}`);
+      if (s.tag) parts.push(`tag:${s.tag}`);
+      if (s.interval && INTERVAL_TARGETS.has(target)) parts.push(`interval:${s.interval}`);
+      if (s.direct && PROXY_DIRECT_TARGETS.has(target)) parts.push(`proxy_direct:${s.direct}`);
+      return parts.length ? `${parts.join(',')},${url}` : url;
+    }
+
+    // ---------- CF 优选 IP 替换 ----------
+    let cfipCache: { key: string; links: string[]; keepLines: string[] } | null = null;
+
+    function computeCfip() {
+      const nodeLines = lines().filter((l) => lineKind(l) === 'node');
+      const key = JSON.stringify([nodeLines, cfipEndpoints.value, cfipPrefix.value, cfipKeep.checked]);
+      if (cfipCache?.key === key) return cfipCache;
+      const parsedNodes = parseNodes(nodeLines.join('\n'));
+      const parsedEndpoints = parseEndpoints(cfipEndpoints.value);
+      const expanded = expandNodes(parsedNodes.nodes, parsedEndpoints.endpoints, {
+        prefix: cfipPrefix.value.trim(),
+        keepHostSni: cfipKeep.checked,
+      });
+      // 只有真正被替换的节点从原列表里拿掉；不能替换的节点（ss / hysteria2 / REALITY 等）原样保留，不丢节点。
+      // 粘贴的整段 base64 订阅：被替换的节点已由展开结果代替，其余内层链接逐条放回。
+      const replaced = new Set(
+        parsedNodes.nodes.filter((n: { raw: string; reality?: boolean }) => !n.reality).map((n: { raw: string }) => n.raw),
+      );
+      const isBlob = (l: string) => /^[A-Za-z0-9+/=_-]{40,}$/.test(l);
+      const keepLines = nodeLines.flatMap((l) => {
+        if (replaced.has(l)) return [];
+        if (!isBlob(l)) return [l];
+        const decoded = b64decode(l);
+        if (decoded === null || !decoded.includes('://')) return [];
+        return decoded.split(/\r?\n/).map((s) => s.trim()).filter((s) => s && !replaced.has(s));
+      });
+      cfipCache = { key, links: expanded.links, keepLines };
+
+      cfipStats.replaceChildren(
+        el('span', 'subconv-stat', `原始节点 ${parsedNodes.nodes.length}`),
+        el('span', 'subconv-stat', `优选地址 ${parsedEndpoints.endpoints.length}`),
+        el('span', 'subconv-stat', `生成节点 ${expanded.links.length}${expanded.truncated ? '（已截断）' : ''}`),
+      );
+      const warnings = [...parsedEndpoints.warnings, ...parsedNodes.warnings, ...parsedNodes.skipped.map((s: string) => `跳过：${s}`), ...expanded.warnings];
+      cfipWarnings.replaceChildren(...warnings.slice(0, 12).map((w) => el('li', undefined, w)));
+      if (warnings.length > 12) cfipWarnings.appendChild(el('li', undefined, `…还有 ${warnings.length - 12} 条提示`));
+      cfipWarnings.hidden = warnings.length === 0;
+      cfipRows.replaceChildren(
+        ...expanded.rows.map((r: { name: string; kind: string; server: string; port: number; host: string; sni: string }) => {
+          const tr = el('tr');
+          [r.name, r.kind, r.server, String(r.port), r.host || '—', r.sni || '—'].forEach((v) => tr.appendChild(el('td', undefined, v)));
+          return tr;
+        }),
+      );
+      cfipPreview.hidden = expanded.rows.length === 0;
+      return cfipCache;
+    }
+
+    function refreshCfip() {
+      if (!cfipEnable.checked && !cfipEndpoints.value.trim()) {
+        cfipStats.replaceChildren();
+        cfipWarnings.hidden = true;
+        cfipPreview.hidden = true;
+        return;
+      }
+      computeCfip();
+    }
+
+    // ---------- 参数 ----------
+    function urlParamFor(target: string): string {
+      const all = lines();
+      const subs = all.filter((l) => lineKind(l) === 'sub').map((l) => prefixed(l, target));
+      let nodes = all.filter((l) => lineKind(l) !== 'sub');
+      if (cfipEnable.checked && cfipEndpoints.value.trim()) {
+        const cf = computeCfip();
+        if (cf.links.length) nodes = [...cf.keepLines, ...cf.links];
+      }
+      return buildUrlParam([...subs, ...nodes]);
+    }
+
+    function configValue(): string {
+      return configPreset.value === '__custom' ? configInput.value.trim() : configPreset.value;
+    }
+
+    function paramsFor(target: string, options: { list?: boolean; explain?: boolean } = {}): Record<string, string> {
+      const params: Record<string, string> = { target, url: urlParamFor(target) };
       const optional: Array<[string, string]> = [
-        ['config', configInput.value.trim()],
+        ['config', configValue()],
         ['include', includeInput.value.trim()],
         ['exclude', excludeInput.value.trim()],
         ['rename', renameInput.value.trim()],
-        ['interval', intervalInput.value.trim()],
+        ['interval', intervalSelect.value],
         ['filename', filenameInput.value.trim()],
-        ['_ua', uaInput.value.trim()],
       ];
-      for (const [key, value] of optional) {
-        if (value) params[key] = value;
-      }
-
-      root.querySelectorAll<HTMLInputElement>('input[data-param]').forEach((checkbox) => {
-        if (checkbox.checked) params[checkbox.dataset.param || ''] = 'true';
+      for (const [key, value] of optional) if (value) params[key] = value;
+      root.querySelectorAll<HTMLInputElement>('input[data-param]').forEach((box) => {
+        const only = box.closest<HTMLElement>('[data-only]')?.dataset.only;
+        if (box.checked && (!only || only.split(' ').includes(target))) params[box.dataset.param || ''] = 'true';
       });
-      return params;
-    }
-
-    function paramsFor(target: string, options: { list?: boolean; explain?: boolean } = {}) {
-      const params = baseParams();
-      params.target = target;
-      if (target === 'surge' && surgeVer.value) params.ver = surgeVer.value;
+      if (target === 'surge') params.ver = surgeVer.value || '5';
+      if (providerProxy.checked && PROXY_DIRECT_TARGETS.has(target)) params.provider_proxy_direct = 'true';
       if (options.list) params.list = 'true';
-      if (options.explain) params.explain = '1';
+      if (options.explain) params.explain = 'true';
       return params;
     }
 
@@ -422,107 +854,226 @@ const targets = [
       return `${api}/sub?${new URLSearchParams(params).toString()}`;
     }
 
-    function showError(message: string) {
-      errorBox.textContent = message;
+    // ---------- 校验 ----------
+    function validate(): string | null {
+      if (!lines().length) return '请先填写订阅链接或节点。';
+      for (const input of [includeInput, excludeInput]) {
+        const v = input.value.trim();
+        if (!v) continue;
+        try {
+          new RegExp(v);
+        } catch {
+          input.focus();
+          return `正则写法有误：${v}`;
+        }
+      }
+      if (configPreset.value === '__custom' && configInput.value.trim() && !/^https?:\/\//i.test(configInput.value.trim())) {
+        return '自定义外部配置需要是 http(s) 链接。';
+      }
+      if (cfipEnable.checked) {
+        if (!cfipEndpoints.value.trim()) return '已启用优选替换，但还没有填优选地址。';
+        if (!computeCfip().links.length) return '优选替换没有生成任何节点：请确认粘贴了 vmess / vless / trojan 节点（订阅链接不参与替换）。';
+      }
+      const len = makeUrl(paramsFor(targetSelect.value, { list: forceList.checked })).length;
+      if (len > URL_BLOCK) return `生成的链接太长（${formatBytes(len)}），客户端和网关都可能拒绝；请减少节点或优选地址数量。`;
+      return null;
+    }
+
+    // ---------- 状态 / 错误 ----------
+    function showError(message: string, requestId?: string | null) {
+      errorBox.replaceChildren(el('span', undefined, message));
+      if (requestId) {
+        const id = el('button', 'subconv-reqid', `REQ // ${requestId.slice(0, 12)}…`) as HTMLButtonElement;
+        id.type = 'button';
+        id.title = '反馈问题时请附上此 ID（点击复制）';
+        id.addEventListener('click', () => copyText(requestId, '请求 ID '));
+        errorBox.appendChild(id);
+      }
       errorBox.hidden = false;
     }
-
     function clearError() {
-      errorBox.textContent = '';
+      errorBox.replaceChildren();
       errorBox.hidden = true;
     }
-
+    function friendly(error: unknown): string {
+      const e = error as Error;
+      if (e?.name === 'AbortError') return '已取消。';
+      if (e?.name === 'TimeoutError') return '后端响应超时（45 秒），可能是订阅源太慢，请稍后重试。';
+      if (e instanceof TypeError) return '无法连接转换网关，请检查网络，或稍后重试。';
+      return (e?.message || String(error)).slice(0, 800);
+    }
     function setLoading(loading: boolean) {
       submitBtn.disabled = loading;
       submitBtn.classList.toggle('is-loading', loading);
+      cancelBtn.hidden = !loading;
       const label = submitBtn.querySelector('span');
       if (label) label.textContent = loading ? '转换中…' : '生成配置';
     }
 
-    async function fetchText(url: string): Promise<string> {
-      const response = await fetch(url, { cache: 'no-store' });
+    // ---------- 请求 ----------
+    function signal(ms: number, outer?: AbortSignal): AbortSignal {
+      const t = AbortSignal.timeout(ms);
+      return outer && 'any' in AbortSignal ? (AbortSignal as any).any([t, outer]) : t;
+    }
+
+    async function fetchExplain(target: string, outer?: AbortSignal): Promise<Explain> {
+      // 与「当前目标」卡片的链接完全一致（含 list=true），诊断验证的就是用户拿去导入的那条
+      const params = paramsFor(target, { explain: true, list: forceList.checked && target === targetSelect.value });
+      const response = await fetch(makeUrl(params), { cache: 'no-store', signal: signal(CONVERT_TIMEOUT, outer) });
+      const requestId = response.headers.get('x-request-id');
       const text = await response.text();
-      if (!response.ok) {
-        throw new Error(text.trim() || `HTTP ${response.status}`);
+      try {
+        return { status: response.status, json: JSON.parse(text), requestId };
+      } catch {
+        return { status: response.status, json: null, text, requestId };
       }
+    }
+
+    async function fetchContent(url: string): Promise<string> {
+      const cached = contentCache.get(url);
+      if (cached !== undefined) return cached;
+      const response = await fetch(url, { cache: 'no-store', signal: signal(CONVERT_TIMEOUT) });
+      const text = await response.text();
+      if (!response.ok) throw new Error(explainError(response.status, text));
+      contentCache.set(url, text);
       return text;
     }
 
-    async function fetchExplain(target: string) {
-      const url = makeUrl(paramsFor(target, { explain: true }));
-      const response = await fetch(url, { cache: 'no-store' });
-      const text = await response.text();
-      try {
-        return { status: response.status, json: JSON.parse(text) as Record<string, any> };
-      } catch {
-        return { status: response.status, json: null, text };
+    function explainError(status: number, text: string): string {
+      const msg = text.trim().slice(0, 600) || `HTTP ${status}`;
+      if (/none of the parsed proxy nodes can be represented/i.test(msg)) {
+        return `所选目标无法表示你的节点协议（例如 SS 节点不能输出为 VLESS 列表），请换一个目标。\n后端原文：${msg}`;
       }
+      return msg;
     }
 
-    function addStat(label: string, value: string) {
-      const item = document.createElement('span');
-      item.className = 'subconv-stat';
-      item.textContent = `${label} ${value}`;
-      statsBox.appendChild(item);
+    // ---------- 渲染：统计 ----------
+    function addStat(box: HTMLElement, label: string, value: string, title?: string) {
+      const item = el('span', 'subconv-stat', `${label} ${value}`);
+      if (title) item.title = title;
+      box.appendChild(item);
+      return item;
     }
 
-    function renderStats(target: string, text: string, explain: { status: number; json: Record<string, any> | null }, elapsed: number) {
+    function renderStats(target: string, explain: Explain, elapsed: number) {
       statsBox.replaceChildren();
-      addStat('目标', TARGET_LABELS[target] || target);
-      const json = explain.json;
-      const nodes = json?.nodes?.total;
-      if (typeof nodes === 'number') addStat('节点', String(nodes));
-      const mode = json?.mode;
-      if (mode) {
-        const modeLabel = mode.proxy_provider ? 'Proxy Provider' : mode.simple_subscription ? '节点列表' : '服务端解析';
-        addStat('模式', modeLabel);
+      const json = explain.json ?? {};
+      addStat(statsBox, '目标', TARGET_LABELS[json.target] || TARGET_LABELS[target] || target);
+      const mode = json.mode ?? {};
+      addStat(statsBox, '模式', mode.proxy_provider ? 'Proxy Provider' : mode.simple_subscription ? '节点列表' : '完整配置');
+      const providerCount = json.output?.provider_count ?? 0;
+      if (providerCount > 0) addStat(statsBox, 'Provider', String(providerCount), '订阅由客户端自行拉取，节点数在客户端里才能看到');
+      if (typeof json.nodes?.total === 'number' && (json.nodes.total > 0 || providerCount === 0)) addStat(statsBox, '节点', String(json.nodes.total));
+      if (typeof json.resources?.ruleset_count === 'number') addStat(statsBox, '规则集', String(json.resources.ruleset_count));
+      if (typeof json.resources?.custom_group_count === 'number') addStat(statsBox, '分组', String(json.resources.custom_group_count));
+      if (typeof json.output?.bytes === 'number') addStat(statsBox, '大小', formatBytes(json.output.bytes));
+      addStat(statsBox, '耗时', `${elapsed} ms`);
+      if (explain.requestId) {
+        const id = addStat(statsBox, 'REQ //', explain.requestId.slice(0, 8), '请求 ID，反馈问题时请附上（点击复制）');
+        id.classList.add('is-click');
+        id.setAttribute('role', 'button');
+        id.tabIndex = 0;
+        const copy = () => copyText(explain.requestId!, '请求 ID ');
+        id.addEventListener('click', copy);
+        id.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), copy()));
       }
-      const rulesets = json?.resources?.ruleset_count;
-      if (typeof rulesets === 'number') addStat('规则集', String(rulesets));
-      const bytes = json?.output?.bytes ?? new Blob([text]).size;
-      addStat('大小', formatBytes(bytes));
-      addStat('耗时', `${elapsed} ms`);
     }
 
-    function renderDiagnostic(explain: { status: number; json: Record<string, any> | null; text?: string }) {
-      if (!explain.json) {
-        diagnostic.hidden = true;
+    // ---------- 渲染：诊断 ----------
+    function renderDiagnostic(explain: Explain) {
+      const json = explain.json;
+      diagnosticBody.replaceChildren();
+      if (!json) {
+        diagnostic.hidden = !explain.text;
+        if (explain.text) diagnosticBody.appendChild(el('pre', 'subconv-diagnostic-pre', explain.text.slice(0, 2000)));
+        diagnosticSummary.textContent = '诊断信息';
         return;
       }
-      const json = explain.json;
-      const summary = {
-        ok: json.ok,
-        status_code: json.status_code,
-        target: json.target,
-        mode: json.mode,
-        inputs: json.inputs,
-        nodes: json.nodes,
-        resources: json.resources,
-        output: json.output,
-        warnings: json.warnings ?? null,
-      };
-      diagnosticPre.textContent = JSON.stringify(summary, null, 2);
+      const warnings: Array<{ name: string; status: string; note: string }> = [];
+      for (const p of json.parameters?.recognized ?? []) {
+        if (p.status && p.status !== 'applied') warnings.push({ name: p.name, status: p.status, note: p.note || '' });
+      }
+      for (const p of json.parameters?.unrecognized ?? []) warnings.push({ name: p.name, status: 'unrecognized', note: p.note || '后端不认识这个参数' });
+      const ext = json.external_config;
+      if (ext?.provided && (!ext.loaded || ext.fallback_used)) {
+        warnings.push({ name: 'config', status: 'fallback', note: '外部配置加载失败，已回退到服务端默认模板。' });
+      }
+      const unsupported: string[] = json.nodes?.unsupported_protocols ?? [];
+      if (unsupported.length) warnings.push({ name: 'nodes', status: 'unsupported', note: `目标不支持这些协议的节点：${unsupported.join(', ')}` });
+
+      // 运行模式一句话
+      const mode = json.mode ?? {};
+      const who = mode.proxy_provider
+        ? '订阅由客户端自行拉取（Proxy Provider），后端没有下载你的订阅。'
+        : (json.inputs?.subscription_url_count ?? 0) > 0
+          ? '订阅由转换后端拉取并解析。'
+          : '只包含直接粘贴的节点。';
+      diagnosticBody.appendChild(el('p', 'subconv-hint', who));
+
+      if (warnings.length) {
+        const table = el('table', 'subconv-table');
+        table.innerHTML = '<caption>参数状态</caption><thead><tr><th>参数</th><th>状态</th><th>说明</th></tr></thead>';
+        const tbody = el('tbody');
+        const labels: Record<string, string> = { ignored: '被忽略', overridden: '被覆盖', unrecognized: '不识别', fallback: '已回退', unsupported: '不支持' };
+        for (const w of warnings) {
+          const tr = el('tr');
+          tr.appendChild(el('td', undefined, w.name));
+          tr.appendChild(el('td', `subconv-badge is-${w.status}`, labels[w.status] || w.status));
+          tr.appendChild(el('td', undefined, w.note));
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        diagnosticBody.appendChild(table);
+      }
+
+      const providers: any[] = json.providers ?? [];
+      if (providers.length) {
+        const table = el('table', 'subconv-table');
+        table.innerHTML = '<caption>Provider</caption><thead><tr><th>名称</th><th>标签</th><th>更新间隔</th><th>下载</th><th>过滤</th></tr></thead>';
+        const tbody = el('tbody');
+        for (const p of providers) {
+          const tr = el('tr');
+          const hours = typeof p.interval === 'number' ? `${Math.round(p.interval / 360) / 10} 小时` : '—';
+          // 以后端是否真的写了 proxy 字段为准（proxy_direct 只是请求值）
+          const download = p.proxy_field_emitted ? '直连（proxy: DIRECT）' : '默认（未指定 proxy）';
+          [p.name || '—', p.tag || '—', hours, download, p.filter_present || p.exclude_filter_present ? '有' : '—'].forEach((v) => tr.appendChild(el('td', undefined, v)));
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        diagnosticBody.appendChild(table);
+      }
+
+      const links = el('p', 'subconv-hint');
+      const inspector = el('a', undefined, '在后端 Inspector 中排查 ↗') as HTMLAnchorElement;
+      inspector.href = `${api}/inspect`;
+      inspector.target = '_blank';
+      inspector.rel = 'noopener noreferrer';
+      links.append(inspector, document.createTextNode('（打开后把结果链接粘贴进去即可）'));
+      diagnosticBody.appendChild(links);
+
+      const raw = el('details', 'subconv-raw');
+      raw.appendChild(el('summary', undefined, '原始诊断 JSON'));
+      raw.appendChild(el('pre', 'subconv-diagnostic-pre', JSON.stringify(json, null, 2)));
+      diagnosticBody.appendChild(raw);
+
+      diagnosticSummary.textContent = warnings.length ? `诊断信息 · ${warnings.length} 条提示` : '诊断信息 · 无异常';
+      diagnostic.open = warnings.length > 0;
       diagnostic.hidden = false;
     }
 
+    // ---------- 渲染：预览 / 下载 / 卡片 ----------
     function setPreview(text: string, label: string) {
       lastContent = text;
       lastContentLabel = label;
       preview.textContent = text;
       previewLabel.textContent = label ? `· ${label}` : '';
+      copyContentBtn.disabled = !text;
     }
-
-    function extensionFor(target: string, list: boolean): string {
-      if (list) return 'txt';
-      return EXTENSIONS[target] || 'txt';
-    }
-
-    function downloadBlob(text: string, target: string, list: boolean) {
+    function downloadBlob(text: string, target: string) {
       const base = filenameInput.value.trim() || `subconverter-${target}`;
-      const filename = `${base}${list ? '-links' : ''}.${extensionFor(target, list)}`;
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const href = URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const filename = `${base}.${EXTENSIONS[target] || 'txt'}`;
+      const href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+      const link = el('a') as HTMLAnchorElement;
       link.href = href;
       link.download = filename;
       document.body.appendChild(link);
@@ -530,267 +1081,444 @@ const targets = [
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(href), 1000);
     }
-
-    function openQr(url: string) {
+    function openQr(url: string, trigger: HTMLElement) {
       try {
         const qr = qrcode(0, 'M');
         qr.addData(url, 'Byte');
         qr.make();
         qrCanvas.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
       } catch {
-        showToast('链接太长，二维码生成失败', 'err');
+        showToast('链接太长，二维码生成失败（可以复制链接或下载文件）', 'err');
         return;
       }
       qrUrlText.textContent = url;
-      qrModal.hidden = false;
-      qrModal.setAttribute('aria-hidden', 'false');
+      qrReturnFocus = trigger;
+      qrDialog.showModal();
     }
 
-    function closeQr() {
-      qrModal.hidden = true;
-      qrModal.setAttribute('aria-hidden', 'true');
-      qrCanvas.replaceChildren();
-    }
-
-    function cardKey(target: string, list: boolean): string {
-      return `${target}:${list ? 'list' : 'config'}`;
-    }
-
-    function makeCard(target: string, label: string, tag: string, list: boolean) {
-      const url = makeUrl(paramsFor(target, { list }));
-      const key = cardKey(target, list);
-
-      const card = document.createElement('article');
-      card.className = 'subconv-card';
-
-      const head = document.createElement('div');
-      head.className = 'subconv-card-head';
-      const titleWrap = document.createElement('div');
-      const tagEl = document.createElement('span');
-      tagEl.className = 'subconv-card-label';
-      tagEl.textContent = tag;
-      const title = document.createElement('h3');
-      title.textContent = label;
-      titleWrap.append(tagEl, title);
-      const state = document.createElement('span');
-      state.className = 'subconv-card-state';
-      state.textContent = '链接已生成';
+    function makeCard(target: string, label: string, tag: string) {
+      const url = makeUrl(paramsFor(target, { list: forceList.checked && target === targetSelect.value }));
+      const card = el('article', 'subconv-card');
+      const head = el('div', 'subconv-card-head');
+      const titleWrap = el('div');
+      titleWrap.append(el('span', 'subconv-card-label', tag), el('h3', undefined, label));
+      const state = el('span', 'subconv-card-state', target === targetSelect.value ? '当前目标' : '链接已生成');
       head.append(titleWrap, state);
 
-      const urlInput = document.createElement('input');
-      urlInput.className = 'subconv-url';
+      const urlInput = el('input', 'subconv-url') as HTMLInputElement;
       urlInput.type = 'text';
       urlInput.readOnly = true;
       urlInput.value = url;
       urlInput.setAttribute('aria-label', `${label} 订阅地址`);
+      urlInput.addEventListener('focus', () => urlInput.select());
 
-      const actions = document.createElement('div');
-      actions.className = 'subconv-card-actions';
-
-      const copyBtn = document.createElement('button');
-      copyBtn.type = 'button';
-      copyBtn.className = 'subconv-mini-btn';
-      copyBtn.textContent = '复制';
-      copyBtn.addEventListener('click', () => copyText(url, '订阅地址'));
-
-      const qrBtn = document.createElement('button');
-      qrBtn.type = 'button';
-      qrBtn.className = 'subconv-mini-btn';
-      qrBtn.textContent = '二维码';
-      qrBtn.addEventListener('click', () => openQr(url));
-
-      const previewBtn = document.createElement('button');
-      previewBtn.type = 'button';
-      previewBtn.className = 'subconv-mini-btn';
-      previewBtn.textContent = '预览';
-      previewBtn.addEventListener('click', async () => {
-        previewBtn.disabled = true;
+      const actions = el('div', 'subconv-card-actions');
+      const btn = (text: string, fn: (b: HTMLButtonElement) => void) => {
+        const b = el('button', 'subconv-mini-btn', text) as HTMLButtonElement;
+        b.type = 'button';
+        b.addEventListener('click', () => fn(b));
+        actions.appendChild(b);
+      };
+      btn('复制', () => copyText(url, '订阅地址'));
+      btn('二维码', (b) => openQr(url, b));
+      const load = async (b: HTMLButtonElement, then: (text: string) => void) => {
+        b.disabled = true;
         try {
-          let text = contentCache.get(key);
-          if (text === undefined) {
-            text = await fetchText(url);
-            contentCache.set(key, text);
-          }
-          setPreview(text, label);
+          const text = await fetchContent(url);
           state.textContent = formatBytes(new Blob([text]).size);
-          showToast(`${label} 已加载预览`, 'ok');
+          then(text);
         } catch (error) {
-          showToast(`预览失败：${(error as Error).message}`, 'err');
+          showToast(`${label}：${friendly(error)}`, 'err');
         } finally {
-          previewBtn.disabled = false;
+          b.disabled = false;
         }
-      });
-
-      const downloadBtn = document.createElement('button');
-      downloadBtn.type = 'button';
-      downloadBtn.className = 'subconv-mini-btn';
-      downloadBtn.textContent = '下载';
-      downloadBtn.addEventListener('click', async () => {
-        downloadBtn.disabled = true;
-        try {
-          let text = contentCache.get(key);
-          if (text === undefined) {
-            text = await fetchText(url);
-            contentCache.set(key, text);
-          }
-          downloadBlob(text, target, list);
-          state.textContent = formatBytes(new Blob([text]).size);
-        } catch (error) {
-          showToast(`下载失败：${(error as Error).message}`, 'err');
-        } finally {
-          downloadBtn.disabled = false;
-        }
-      });
-
-      actions.append(copyBtn, qrBtn, previewBtn, downloadBtn);
+      };
+      btn('预览', (b) => load(b, (text) => setPreview(text, label)));
+      btn('下载', (b) => load(b, (text) => downloadBlob(text, target)));
       card.append(head, urlInput, actions);
-
-      if (target === targetSelect.value && !list) {
-        state.textContent = '当前目标';
-      }
-      return { card, key, state };
+      return card;
     }
 
     function renderCards() {
-      cardsBox.replaceChildren();
-      const entries: Array<{ target: string; label: string; tag: string; list: boolean; state: HTMLElement }> = [];
-      for (const item of CARDS) {
-        const { card, key, state } = makeCard(item.target, item.label, item.tag, Boolean(item.list));
-        cardsBox.appendChild(card);
-        entries.push({ ...item, list: Boolean(item.list), state });
-        if (contentCache.has(key)) {
-          const text = contentCache.get(key)!;
-          state.textContent = formatBytes(new Blob([text]).size);
-        }
+      const list = [...CARDS];
+      // 当前选的目标不在默认卡片里（如 v2rayN、Trojan 列表）时，放在第一张
+      if (!list.some((c) => c.target === targetSelect.value)) {
+        list.unshift({ target: targetSelect.value, label: TARGET_LABELS[targetSelect.value] || targetSelect.value, tag: targetSelect.value.toUpperCase() });
       }
-      return entries;
+      cardsBox.replaceChildren(...list.map((c) => makeCard(c.target, c.label, c.tag)));
     }
 
-    function renderResult(target: string, text: string, explain: { status: number; json: Record<string, any> | null }, elapsed: number) {
-      result.hidden = false;
-      resultNote.textContent = `${TARGET_LABELS[target] || target} · ${formatBytes(new Blob([text]).size)}`;
-      renderStats(target, text, explain, elapsed);
-      renderCards();
-      renderDiagnostic(explain);
-      setPreview(text, TARGET_LABELS[target] || target);
-      contentCache.set(cardKey(target, false), text);
-      result.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
+    // ---------- 主流程 ----------
     async function convert(event: Event) {
       event.preventDefault();
       clearError();
-      const target = targetSelect.value;
-      const params = paramsFor(target);
-      if (!params.url) {
-        showError('请先填写订阅链接。');
-        urlsInput.focus();
+      const problem = validate();
+      if (problem) {
+        showError(problem);
+        if (problem.startsWith('请先填写')) urlsInput.focus();
         return;
       }
+      const target = targetSelect.value;
+      const len = makeUrl(paramsFor(target, { list: forceList.checked })).length;
+      if (len > URL_WARN) showToast(`生成的链接较长（${formatBytes(len)}），部分客户端可能无法导入`, 'err');
 
+      savePrefs();
+      contentCache.clear();
+      // 每次转换持有自己的控制器：旧请求被新请求顶掉时，旧请求的收尾不能动新请求的状态
+      running?.abort();
+      const ctl = new AbortController();
+      running = ctl;
       setLoading(true);
       const started = performance.now();
       try {
-        const url = makeUrl(params);
-        const [text, explain] = await Promise.all([
-          fetchText(url),
-          fetchExplain(target).catch(() => ({ status: 0, json: null })),
-        ]);
-        renderResult(target, text, explain, Math.round(performance.now() - started));
+        // 只请求一次 explain：统计、诊断、卡片都用它；正文按需加载，
+        // 避免一次转换让后端把你的订阅拉取 2~3 次。
+        const explain = await fetchExplain(target, ctl.signal);
+        if (running !== ctl) return; // 已被新的转换取代
+        lastExplain = explain;
+        const elapsed = Math.round(performance.now() - started);
+        const ok = explain.json ? explain.json.ok !== false && explain.status < 400 : explain.status < 400;
+        if (!ok) {
+          result.hidden = false;
+          resultNote.textContent = `${TARGET_LABELS[target] || target} · 失败`;
+          statsBox.replaceChildren();
+          cardsBox.replaceChildren();
+          setPreview('', '');
+          preview.textContent = '转换失败，见上方错误与诊断信息。';
+          renderDiagnostic(explain);
+          const msg = explain.json?.error || explain.json?.message || explain.text || `HTTP ${explain.json?.status_code ?? explain.status}`;
+          showError(explainError(explain.status, String(msg)), explain.requestId);
+          showToast('转换失败', 'err');
+          return;
+        }
+        result.hidden = false;
+        const bytes = explain.json?.output?.bytes;
+        resultNote.textContent = `${TARGET_LABELS[explain.json?.target] || TARGET_LABELS[target] || target}${typeof bytes === 'number' ? ` · ${formatBytes(bytes)}` : ''}`;
+        renderStats(target, explain, elapsed);
+        renderCards();
+        renderDiagnostic(explain);
+        setPreview('', '');
+        preview.textContent = '点「加载预览」或卡片上的「预览」查看生成内容。';
+        result.scrollIntoView({ behavior: 'smooth', block: 'start' });
         showToast('配置已生成', 'ok');
       } catch (error) {
-        const message = (error as Error).message || String(error);
-        showError(message.slice(0, 800));
-        const explain = await fetchExplain(target).catch(() => null);
-        if (explain) {
-          result.hidden = false;
-          renderDiagnostic(explain);
+        if (running !== ctl) return;
+        const msg = friendly(error);
+        if ((error as Error)?.name !== 'AbortError') {
+          showError(msg);
+          showToast('转换失败', 'err');
         }
-        showToast('转换失败', 'err');
       } finally {
-        setLoading(false);
+        if (running === ctl) {
+          running = null;
+          setLoading(false);
+        }
       }
     }
 
-    async function refreshStatus() {
-      statusDot.className = 'subconv-dot';
-      statusText.textContent = '正在检查…';
+    // ---------- 后端状态：版本只查一次，健康检查 60 秒一次、页面不可见时暂停 ----------
+    let lastStatus = '';
+    function setStatus(state: 'ok' | 'bad' | 'checking', text: string) {
+      statusDot.className = `subconv-dot${state === 'checking' ? '' : ` ${state}`}`;
+      if (text !== lastStatus) {
+        statusText.textContent = text;
+        lastStatus = text;
+      }
+    }
+    async function checkHealth() {
+      if (document.visibilityState === 'hidden') return;
       try {
-        const [healthRes, versionRes] = await Promise.all([
-          fetch(`${api}/healthz`, { cache: 'no-store' }),
-          fetch(`${api}/version`, { cache: 'no-store' }),
-        ]);
-        const health = healthRes.ok ? (await healthRes.text()).trim() : '';
-        const versionHtml = versionRes.ok ? await versionRes.text() : '';
-        const ok = /^ok$/i.test(health);
-        statusDot.classList.add(ok ? 'ok' : 'bad');
-        statusText.textContent = ok ? '后端正常' : '后端不可达';
-        const version = /v\d+\.\d+\.\d+/.exec(versionHtml);
-        statusVersion.textContent = version ? `版本 ${version[0]}` : '版本 —';
+        const res = await fetch(`${api}/healthz`, { cache: 'no-store', signal: AbortSignal.timeout(HEALTH_TIMEOUT) });
+        const ok = res.ok && /^ok$/i.test((await res.text()).trim());
+        setStatus(ok ? 'ok' : 'bad', ok ? '后端正常' : '后端不可达');
       } catch {
-        statusDot.classList.add('bad');
-        statusText.textContent = '后端不可达';
+        setStatus('bad', '后端不可达');
+      }
+    }
+    async function loadVersion() {
+      try {
+        const res = await fetch(`${api}/version`, { cache: 'no-store', signal: AbortSignal.timeout(HEALTH_TIMEOUT) });
+        const text = res.ok ? await res.text() : '';
+        const m = /v(\d+\.\d+\.\d+)(?:-([0-9a-f]{6,}))?/i.exec(text);
+        statusVersion.textContent = m ? `版本 v${m[1]}${m[2] ? ` · ${m[2].slice(0, 7)}` : ''}` : '版本 —';
+      } catch {
         statusVersion.textContent = '版本 —';
       }
     }
 
-    form.addEventListener('submit', convert);
-    targetSelect.addEventListener('change', updateSurgeField);
+    // ---------- 偏好 ----------
+    function savePrefs() {
+      const toggles: Record<string, boolean> = {};
+      root.querySelectorAll<HTMLInputElement>('input[data-param]').forEach((b) => (toggles[b.dataset.param!] = b.checked));
+      const prefs: Record<string, any> = {
+        target: targetSelect.value,
+        surgeVer: surgeVer.value,
+        configPreset: configPreset.value,
+        include: includeInput.value,
+        exclude: excludeInput.value,
+        rename: renameInput.value,
+        interval: intervalSelect.value,
+        filename: filenameInput.value,
+        providerProxy: providerProxy.checked,
+        cfipKeep: cfipKeep.checked,
+        cfipPrefix: cfipPrefix.value,
+        toggles,
+        rememberUrls: rememberUrls.checked,
+      };
+      // 订阅链接、节点属于敏感信息，只有用户明确勾选才保存。
+      // 自定义外部配置若带查询参数或账号密码（可能是私有 token），同样只在勾选时保存。
+      if (rememberUrls.checked) prefs.urls = urlsInput.value;
+      const cfg = configInput.value.trim();
+      const cfgHasSecret = (() => {
+        try {
+          const u = new URL(cfg);
+          return Boolean(u.username || u.password || u.search);
+        } catch {
+          return false;
+        }
+      })();
+      if (cfg && (rememberUrls.checked || !cfgHasSecret)) prefs.config = cfg;
+      writePrefs(prefs);
+    }
+    /** 忘掉已保存的敏感内容（取消「记住」或点「重置」时） */
+    function forgetSensitive() {
+      const p = readPrefs();
+      delete p.urls;
+      delete p.config;
+      p.rememberUrls = false;
+      writePrefs(p);
+    }
+    function loadPrefs() {
+      const p = readPrefs();
+      const setSelect = (select: HTMLSelectElement, value: unknown) => {
+        if (typeof value === 'string' && [...select.options].some((o) => o.value === value)) select.value = value;
+      };
+      setSelect(targetSelect, p.target);
+      setSelect(surgeVer, p.surgeVer);
+      setSelect(configPreset, p.configPreset);
+      setSelect(intervalSelect, p.interval);
+      if (typeof p.config === 'string') configInput.value = p.config;
+      if (typeof p.include === 'string') includeInput.value = p.include;
+      if (typeof p.exclude === 'string') excludeInput.value = p.exclude;
+      if (typeof p.rename === 'string') renameInput.value = p.rename;
+      if (typeof p.filename === 'string') filenameInput.value = p.filename;
+      if (typeof p.cfipPrefix === 'string') cfipPrefix.value = p.cfipPrefix;
+      providerProxy.checked = p.providerProxy === true;
+      if (typeof p.cfipKeep === 'boolean') cfipKeep.checked = p.cfipKeep;
+      rememberUrls.checked = p.rememberUrls === true;
+      if (p.rememberUrls && typeof p.urls === 'string') urlsInput.value = p.urls;
+      root.querySelectorAll<HTMLInputElement>('input[data-param]').forEach((b) => {
+        if (typeof p.toggles?.[b.dataset.param!] === 'boolean') b.checked = p.toggles[b.dataset.param!];
+      });
+    }
 
-    fillTemplateBtn.addEventListener('click', () => {
-      configInput.value = TEMPLATE_URL;
-      configInput.focus();
-      showToast('已填入 Clash 模板地址', 'ok');
+    // ---------- 导入已有链接 ----------
+    function importLink(raw: string) {
+      let u: URL;
+      try {
+        u = new URL(raw.trim());
+      } catch {
+        showToast('不是有效的链接', 'err');
+        return;
+      }
+      const q = u.searchParams;
+      if (!q.get('url')) {
+        showToast('链接里没有 url 参数，不像是转换链接', 'err');
+        return;
+      }
+      const urlLines: string[] = [];
+      providerSettings.clear();
+      for (const part of (q.get('url') || '').split('|')) {
+        // 拆出 provider:/tag:/interval:/proxy_direct: 前缀
+        const setting: ProviderSetting = { name: '', tag: '', interval: '', direct: '' };
+        let rest = part;
+        let m: RegExpExecArray | null;
+        while ((m = /^(provider|tag|interval|proxy_direct):([^,]*),/.exec(rest))) {
+          if (m[1] === 'provider') setting.name = m[2];
+          else if (m[1] === 'tag') setting.tag = m[2];
+          else if (m[1] === 'interval') setting.interval = /^\d+$/.test(m[2]) ? m[2] : '';
+          else setting.direct = m[2] === 'true' || m[2] === '1' ? 'true' : ''; // false 与默认相同
+          rest = rest.slice(m[0].length);
+        }
+        if (setting.name || setting.tag || setting.interval || setting.direct) providerSettings.set(rest, setting);
+        urlLines.push(rest);
+      }
+      urlsInput.value = urlLines.join('\n');
+      const target = q.get('target');
+      if (target && [...targetSelect.options].some((o) => o.value === target)) targetSelect.value = target;
+      if (q.get('ver')) surgeVer.value = q.get('ver')!;
+      const cfg = q.get('config') || '';
+      const preset = [...configPreset.options].find((o) => o.value === cfg);
+      configPreset.value = preset ? cfg : cfg ? '__custom' : '';
+      configInput.value = preset ? '' : cfg;
+      includeInput.value = q.get('include') || '';
+      excludeInput.value = q.get('exclude') || '';
+      renameInput.value = q.get('rename') || '';
+      filenameInput.value = q.get('filename') || '';
+      const iv = q.get('interval') || '';
+      intervalSelect.value = [...intervalSelect.options].some((o) => o.value === iv) ? iv : '';
+      providerProxy.checked = q.get('provider_proxy_direct') === 'true';
+      forceList.checked = q.get('list') === 'true';
+      root.querySelectorAll<HTMLInputElement>('input[data-param]').forEach((b) => (b.checked = q.get(b.dataset.param!) === 'true'));
+      importBox.hidden = true;
+      importInput.value = '';
+      // 导入的 url= 里已经是替换过的节点：关掉优选替换，否则会再乘一遍（6 → 18）
+      const hadCfip = cfipEnable.checked;
+      cfipEnable.checked = false;
+      cfipCache = null;
+      refreshCfip();
+      if (hadCfip) showToast('导入的链接已包含优选替换后的节点，已关闭「优选替换」', 'ok');
+      syncTargetUi();
+      updateInputStats();
+      renderProviderRows();
+      if (providerSettings.size) providerDetails.open = true;
+      showToast('已回填表单', 'ok');
+    }
+
+    // ---------- 目标相关的界面 ----------
+    function syncTargetUi() {
+      const t = targetSelect.value;
+      surgeField.hidden = t !== 'surge';
+      configInput.hidden = configPreset.value !== '__custom';
+      root.querySelectorAll<HTMLElement>('[data-only]').forEach((node) => {
+        node.hidden = !node.dataset.only!.split(' ').includes(t);
+      });
+      const hints: Record<string, string> = {
+        auto: '客户端直接导入这条链接时，后端按客户端 UA 选格式；在浏览器里打开（统计、预览）按 Mihomo / Clash 格式输出。',
+        clash: '订阅链接以 Proxy Provider 输出，节点由客户端自行更新。',
+        clashr: '订阅链接以 Proxy Provider 输出，节点由客户端自行更新。',
+        mixed: '通用 Base64 节点列表，适用于 v2rayN、NekoBox、Shadowrocket 等。',
+      };
+      targetHint.textContent = hints[t] || (['ss', 'ssr', 'v2ray', 'trojan', 'vless', 'hysteria2'].includes(t) ? '单协议链接列表：只输出能用该协议表示的节点。' : '');
+      renderProviderRows();
+    }
+
+    // ---------- 事件 ----------
+    let inputTimer = 0;
+    urlsInput.addEventListener('input', () => {
+      window.clearTimeout(inputTimer);
+      inputTimer = window.setTimeout(() => {
+        updateInputStats();
+        renderProviderRows();
+        refreshCfip();
+      }, 150);
     });
-
-    resetBtn.addEventListener('click', () => {
-      window.setTimeout(() => {
-        result.hidden = true;
-        clearError();
-        contentCache.clear();
-        lastContent = '';
-        statsBox.replaceChildren();
-        cardsBox.replaceChildren();
-        diagnostic.hidden = true;
-        preview.textContent = '';
-        previewLabel.textContent = '';
-        updateSurgeField();
-      }, 0);
-    });
-
     urlsInput.addEventListener('keydown', (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault();
-        form.requestSubmit();
+        // requestSubmit 不看按钮是否禁用：转换进行中不重复提交
+        if (!running) form.requestSubmit();
       }
     });
-
+    let cfipTimer = 0;
+    const scheduleCfip = () => {
+      window.clearTimeout(cfipTimer);
+      cfipTimer = window.setTimeout(refreshCfip, 150);
+    };
+    [cfipEndpoints, cfipPrefix].forEach((n) => n.addEventListener('input', scheduleCfip));
+    [cfipKeep, cfipEnable].forEach((n) => n.addEventListener('change', scheduleCfip));
+    $<HTMLButtonElement>('[data-cfip-demo]').addEventListener('click', () => {
+      // 演示数据：明显的占位地址和全零凭据，不对应任何真实服务
+      const demoNodes = [
+        'vless://00000000-0000-0000-0000-000000000000@edge.example.com:443?encryption=none&security=tls&type=ws&host=edge.example.com&path=%2Fws&sni=edge.example.com#示例-VLESS',
+        'trojan://test-password@edge.example.com:443?security=tls&type=ws&path=%2Ftrojan#示例-Trojan',
+      ];
+      const current = lines();
+      urlsInput.value = [...current.filter((l) => !demoNodes.includes(l)), ...demoNodes].join('\n');
+      cfipEndpoints.value = '104.16.0.1#示例-01\n104.17.0.1:2053#示例-02\n[2606:4700::]:443#示例-v6';
+      cfipEnable.checked = true;
+      updateInputStats();
+      renderProviderRows();
+      refreshCfip();
+      showToast('已填入演示数据（占位地址，不能实际连接）', 'ok');
+    });
+    form.addEventListener('submit', convert);
+    cancelBtn.addEventListener('click', () => running?.abort());
+    targetSelect.addEventListener('change', syncTargetUi);
+    configPreset.addEventListener('change', () => {
+      syncTargetUi();
+      if (configPreset.value === '__custom') configInput.focus();
+    });
+    resetBtn.addEventListener('click', () => {
+      window.setTimeout(() => {
+        running?.abort();
+        // 原生 reset 会取消「记住订阅链接」的勾，但不触发 change：这里同步清掉已保存的链接，
+        // 否则下次打开又会回填（共用电脑上尤其危险）
+        forgetSensitive();
+        result.hidden = true;
+        clearError();
+        contentCache.clear();
+        providerSettings.clear();
+        cfipCache = null;
+        lastExplain = null;
+        statsBox.replaceChildren();
+        cardsBox.replaceChildren();
+        diagnostic.hidden = true;
+        setPreview('', '');
+        updateInputStats();
+        syncTargetUi();
+        refreshCfip();
+      }, 0);
+    });
+    previewLoadBtn.addEventListener('click', async () => {
+      const target = targetSelect.value;
+      const url = makeUrl(paramsFor(target, { list: forceList.checked }));
+      previewLoadBtn.disabled = true;
+      try {
+        setPreview(await fetchContent(url), TARGET_LABELS[target] || target);
+      } catch (error) {
+        showToast(`预览失败：${friendly(error)}`, 'err');
+      } finally {
+        previewLoadBtn.disabled = false;
+      }
+    });
     copyContentBtn.addEventListener('click', () => copyText(lastContent, `${lastContentLabel || '内容'} `));
-
-    statusRefresh.addEventListener('click', refreshStatus);
-
-    qrModal.querySelectorAll('[data-qr-close]').forEach((el) => {
-      el.addEventListener('click', closeQr);
+    statusRefresh.addEventListener('click', () => {
+      setStatus('checking', '正在检查…');
+      checkHealth();
+      loadVersion();
     });
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !qrModal.hidden) closeQr();
+    importToggle.addEventListener('click', () => {
+      importBox.hidden = !importBox.hidden;
+      if (!importBox.hidden) importInput.focus();
+    });
+    importApply.addEventListener('click', () => importLink(importInput.value));
+    importInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        importLink(importInput.value);
+      }
+    });
+    qrDialog.querySelector('[data-qr-close]')!.addEventListener('click', () => qrDialog.close());
+    qrDialog.addEventListener('click', (e) => {
+      if (e.target === qrDialog) qrDialog.close(); // 点遮罩关闭
+    });
+    qrDialog.addEventListener('close', () => {
+      qrCanvas.replaceChildren();
+      qrReturnFocus?.focus();
+    });
+    rememberUrls.addEventListener('change', () => {
+      if (!rememberUrls.checked) forgetSensitive();
     });
 
-    updateSurgeField();
-    refreshStatus();
-    clearTimer();
-    const host = window as unknown as { __subconvStatusTimer?: number };
-    host.__subconvStatusTimer = window.setInterval(refreshStatus, 60_000);
+    loadPrefs();
+    syncTargetUi();
+    updateInputStats();
+    refreshCfip();
+    loadVersion();
+    checkHealth();
+    clearStatusTimer();
+    statusTimer = window.setInterval(checkHealth, 60_000);
+    void lastExplain;
   }
 
   init();
   document.addEventListener('astro:page-load', init);
   document.addEventListener('astro:before-swap', () => {
-    clearTimer();
-    const modal = document.querySelector<HTMLElement>('[data-qr-modal]');
-    if (modal) {
-      modal.hidden = true;
-      modal.setAttribute('aria-hidden', 'true');
-    }
+    clearStatusTimer();
+    document.querySelector<HTMLDialogElement>('[data-qr-dialog]')?.close();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') document.querySelector<HTMLButtonElement>('[data-status-refresh]')?.click();
   });
 </script>

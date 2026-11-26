@@ -130,6 +130,9 @@
 }
 
 /* 最新文章：公告关闭时向右平推滑入 + 惯性过冲回弹（ak.hypergryph.com 式横向过渡） */
+/* .home-posts 同时是 .panel.reveal-x：显现动画规则是 .js .reveal-x.is-in / .reveal-instant（0,3,0），
+   这里要更高的优先级才能盖过去 */
+.js .home-posts.reveal-x.push-anim,
 .home-posts.push-anim {
   animation: home-push-right 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
   will-change: transform;

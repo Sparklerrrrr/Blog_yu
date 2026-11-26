@@ -7,6 +7,7 @@ import '../styles/tokens.css';
 import '../styles/layout.css';
 import '../styles/components.css';
 import '../styles/pages.css';
+import '../styles/read-hud.css';
 
 interface Props {
   title?: string;
@@ -19,6 +20,8 @@ interface Props {
   modifiedTime?: Date;
   /** OpenGraph 图片路径（可选，如 /avatar.png） */
   image?: string;
+  /** 页面级 body class（归档三维终端等全屏页面用） */
+  bodyClass?: string;
 }
 
 const {
@@ -28,6 +31,7 @@ const {
   publishedTime,
   modifiedTime,
   image,
+  bodyClass,
 } = Astro.props;
 const fullTitle = title ? `${title} | ${SITE.tabTitle}` : `${SITE.tabTitle} | ${SITE.en}`;
 const canonical = new URL(Astro.url.pathname, Astro.site ?? SITE.url).href;
@@ -65,25 +69,57 @@ const ogImage = image ? new URL(image, canonical).href : undefined;
     <ClientRouter />
     <script is:inline>
       // 主题防闪烁：尽早恢复明暗偏好（浅色冰川 / 暗色冰川）
-      document.documentElement.classList.add('js');
-      try {
-        document.documentElement.dataset.theme = localStorage.getItem('blog-theme') || 'light';
-      } catch (e) {
-        document.documentElement.dataset.theme = 'light';
-      }
+      // ClientRouter 换页后会重建 <html> 属性，需在 after-swap 重新补上。
+      (() => {
+        const apply = () => {
+          document.documentElement.classList.add('js');
+          try {
+            document.documentElement.dataset.theme = localStorage.getItem('blog-theme') || 'light';
+          } catch (e) {
+            document.documentElement.dataset.theme = 'light';
+          }
+          // READ FULL TEXT：HUD 扩张的 root 裁切参数（首次加载与 ClientRouter 换页都要补）
+          try {
+            if (sessionStorage.getItem('blogyu:read-nav') === '1') {
+              sessionStorage.removeItem('blogyu:read-nav');
+              const clip = sessionStorage.getItem('blogyu:read-clip');
+              const expand = sessionStorage.getItem('blogyu:read-expand');
+              sessionStorage.removeItem('blogyu:read-clip');
+              sessionStorage.removeItem('blogyu:read-expand');
+              document.documentElement.classList.add('read-nav');
+              if (clip) document.documentElement.style.setProperty('--read-clip-from', clip);
+              if (expand) document.documentElement.style.setProperty('--read-expand', `${expand}ms`);
+            }
+          } catch (e) {}
+        };
+        apply();
+        document.addEventListener('astro:after-swap', apply);
+      })();
     </script>
   </head>
-  <body>
+  <body class={bodyClass || undefined}>
     <div id="progress-bar" aria-hidden="true"></div>
     <div class="top-glow" aria-hidden="true"></div>
     <TopNav />
+    <div id="read-hud" class="read-hud" aria-hidden="true" transition:persist>
+      <svg class="read-hud__trace" aria-hidden="true"><rect /></svg>
+      <i class="read-hud__edge h"></i>
+      <i class="read-hud__edge h"></i>
+      <i class="read-hud__edge v"></i>
+      <i class="read-hud__edge v"></i>
+      <i class="read-hud__c c0"></i>
+      <i class="read-hud__c c1"></i>
+      <i class="read-hud__c c2"></i>
+      <i class="read-hud__c c3"></i>
+      <span class="read-hud__label"></span>
+    </div>
     <main>
       <slot />
     </main>
     <Footer />
 
     <!-- Toast 轻提示容器（复制 / 操作反馈） -->
-    <div id="toast-host" class="toast-host" role="status" aria-live="polite"></div>
+    <div id="toast-host" class="toast-host" role="status" aria-live="polite" transition:persist></div>
 
     <script src="../scripts/app.ts"></script>
   </body>

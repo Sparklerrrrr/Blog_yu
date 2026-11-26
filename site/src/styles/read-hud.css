@@ -1,0 +1,96 @@
+/* READ FULL TEXT：HUD 锁定 · 描边解密
+   同一时间画面上只有「四角标 + 一条描边线」。转场结束后四角标留在文章页四角。 */
+
+.read-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  view-transition-name: read-hud;
+}
+
+.read-hud__c {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  border: 0 solid var(--accent, #2aa9db);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.read-hud__c.c0 { border-top-width: 2px; border-left-width: 2px; }
+.read-hud__c.c1 { border-top-width: 2px; border-right-width: 2px; }
+.read-hud__c.c2 { border-bottom-width: 2px; border-left-width: 2px; }
+.read-hud__c.c3 { border-bottom-width: 2px; border-right-width: 2px; }
+
+.read-hud__trace {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  opacity: 0;
+}
+.read-hud__trace rect {
+  fill: none;
+  stroke: var(--accent, #2aa9db);
+  stroke-width: 1.5;
+}
+
+.read-hud__edge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: var(--accent, #2aa9db);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent, #2aa9db) 55%, transparent);
+  opacity: 0;
+  transform-origin: 0 0;
+  will-change: transform, opacity, filter;
+}
+.read-hud__edge.h { width: 100vw; height: 1.5px; }
+.read-hud__edge.v { width: 1.5px; height: 100vh; }
+
+.read-hud__label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font: 500 11px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.1em;
+  color: var(--accent-deep, #1f7fa6);
+  white-space: nowrap;
+  opacity: 0;
+  will-change: transform, opacity, letter-spacing;
+}
+.read-hud__label::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  background: var(--accent, #2aa9db);
+  box-shadow: 0 0 6px var(--accent, #2aa9db);
+}
+
+/* 共享 HUD 层跨页保留；root 只负责从档案盒矩形扩张，不做整页交叉淡入 */
+html.read-nav::view-transition-old(root) { animation: none; }
+html.read-nav::view-transition-new(root) {
+  animation: read-clip-in var(--read-expand, 520ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes read-clip-in {
+  from { clip-path: var(--read-clip-from); }
+  to { clip-path: inset(0 0 0 0); }
+}
+html.read-nav::view-transition-group(read-hud) { animation: none; }
+html.read-nav::view-transition-old(read-hud) { display: none; }
+html.read-nav::view-transition-new(read-hud) { animation: none; }
+
+/* 新页快照时文章面板/页头直接可见（HUD 负责转场，不靠 root 淡入） */
+/* 显现偏移用的是独立的 translate 属性（tokens.css），这里要清的是 translate，不是 transform */
+html.read-nav .panel.reveal-x,
+html.read-nav .post-head.reveal { opacity: 1 !important; translate: none !important; animation: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .read-hud { display: none; }
+}

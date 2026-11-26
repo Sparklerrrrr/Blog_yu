@@ -35,7 +35,7 @@ import { CardAppearance } from "./appearance";
 import { configureInternalOptics } from "./internal-optics";
 import { DecryptionController } from "./decryption";
 import { archiveColumns, fileAtSlot, fileLocation, rowPeriod } from "./data";
-import { PALETTE, glsl } from "./palette";
+import { PALETTE, glsl, isAccentSurface } from "./palette";
 import { drawArchiveLabel } from "./label";
 import {
   cellKey,
@@ -90,8 +90,13 @@ export class ArchiveScene {
     this.inputEvents.abort();
     this.cancelPointer();
     disposeThreeTree(this.scene);
+    // disposeThreeTree 只处理 Mesh，光晕 Sprite 的材质/贴图需要单独释放。
+    const glowMaterial = this.spotGlow?.material as THREE.SpriteMaterial | undefined;
+    glowMaterial?.map?.dispose();
+    glowMaterial?.dispose();
     this.appearance.disposeSources();
     this.model.clear();
+    this.heroGlasses = [];
     this.outgoing = [];
     this.instances = [];
     this.light.shadow.map?.dispose();
@@ -108,7 +113,6 @@ export class ArchiveScene {
   private selectedIndexOnly = false;
   private superPerformance = false;
   setSuperPerformance(enabled: boolean) {
-    if (this.superPerformance === enabled) return;
     this.superPerformance = enabled;
     for (const inst of this.instances) {
       const original = (inst.userData.fullMaterial ??= inst.material) as THREE.MeshPhysicalMaterial;
@@ -123,6 +127,12 @@ export class ArchiveScene {
       }
       inst.material = enabled ? inst.userData.fastMaterial : original;
       inst.visible = !enabled || original.name.replace(/\.\d+$/, "") !== "Titanium_Fasteners";
+    }
+    // 性能模式连主档案的屏幕空间透射一起关掉，彻底省掉透射 pass。
+    for (const glass of this.heroGlasses) {
+      glass.userData.fullTransmission ??= glass.transmission;
+      glass.transmission = enabled ? 0 : (glass.userData.fullTransmission as number);
+      glass.needsUpdate = true;
     }
     this.resize();
   }
@@ -247,7 +257,14 @@ export class ArchiveScene {
   private rotation = 0;
   private targetRotation = 0;
   private light: THREE.DirectionalLight;
+  /** 主档案（被抽出/选中）的玻璃材质，性能模式下关闭透射 */
+  private heroGlasses: THREE.MeshPhysicalMaterial[] = [];
+  /** 跟随选中档案的柔光聚光灯（博客版新增） */
+  private spot!: THREE.SpotLight;
+  /** 选中档案上方的柔光光晕，确保高亮在浅色场景里也能一眼看到 */
+  private spotGlow!: THREE.Sprite;
   private clock = 0;
+  private lastShadowUpdate = -1;
   private loaded = false;
   private labelCanvas = document.createElement("canvas");
   private labelTexture?: THREE.CanvasTexture;
@@ -256,6 +273,16 @@ export class ArchiveScene {
   wheelNavigation = false;
   /** 博客版新增：只推进模拟、不提交渲染（终端滚出视口时省电，也用于自动化检查）。 */
   renderSuspended = false;
+  /** READ FULL TEXT：轻量运镜到文件夹正面，并在静止帧截取画面。 */
+  private readFocus = 0;
+  private readFocusFrom = 0;
+  private readFocusTarget = 0;
+  private readFocusStart = -1;
+  private readFocusDuration = 0.42;
+  private readDim: { material: THREE.MeshPhysicalMaterial; color: THREE.Color }[] = [];
+  private readDimBackground?: THREE.Color;
+  private readDimFloor?: { material: THREE.MeshStandardMaterial; color: THREE.Color };
+  private readDimFog?: THREE.Color;
   private motion: MotionPreferences = fullMotion();
   private quality = normalizeQuality(undefined);
   private appliedQuality = "";
@@ -288,7 +315,9 @@ export class ArchiveScene {
     // Generate the shadow map in the beauty pass and reuse it in depth/normal passes.
     this.renderer.shadowMap.autoUpdate = false;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    // Neutral（Khronos PBR Neutral）：保留材质原本的冰川蓝饱和度与对比，
+    // ACES 会把接近白色的玻璃/纸面整体压灰。曝光仍由 archive-lighting / 主题环境控制。
+    this.renderer.toneMapping = THREE.NeutralToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.domElement.setAttribute(
       "aria-label",
@@ -303,7 +332,7 @@ export class ArchiveScene {
     // The frame updates world matrices once after simulation; subsequent
     // beauty, normal, depth and transmission renders reuse those same matrices.
     this.scene.matrixWorldAutoUpdate = false;
-    this.scene.fog = new THREE.Fog(PALETTE.light.paper, 22, 47);
+    this.scene.fog = new THREE.Fog(PALETTE.light.paper, 20, 45);
     this.light = createArchiveLighting(this.renderer, this.scene, lightingLook);
     this.light.castShadow = true;
     Object.assign(this.light.shadow.camera, {
@@ -318,9 +347,42 @@ export class ArchiveScene {
     this.light.shadow.normalBias = lightingLook === "refined" ? 0.018 : 0.035;
     this.light.shadow.bias = lightingLook === "refined" ? -0.00012 : -0.0003;
     this.light.shadow.radius = 4;
+    // 选中档案上方的柔光聚光，跟随选择移动；不投影，避免额外阴影开销。
+    const spot0 = this.cellPosition(this.selectedCell);
+    this.spot = new THREE.SpotLight(PALETTE.light.spot, 360, 30, 0.4, 0.85, 2);
+    this.spot.position.set(spot0.x - 3.5, spot0.y + 12, spot0.z + 7);
+    this.spot.target.position.set(spot0.x, spot0.y + 1.4, spot0.z);
+    this.spot.castShadow = false;
+    this.scene.add(this.spot, this.spot.target);
+    // 柔光光晕：程序生成的径向渐变，加色混合，始终朝向相机。
+    const glowCanvas = document.createElement("canvas");
+    glowCanvas.width = glowCanvas.height = 128;
+    const glowCtx = glowCanvas.getContext("2d")!;
+    const glowGradient = glowCtx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    glowGradient.addColorStop(0, "rgba(226,248,255,0.95)");
+    glowGradient.addColorStop(0.28, "rgba(112,201,238,0.55)");
+    glowGradient.addColorStop(1, "rgba(70,170,215,0)");
+    glowCtx.fillStyle = glowGradient;
+    glowCtx.fillRect(0, 0, 128, 128);
+    const glowTexture = new THREE.CanvasTexture(glowCanvas);
+    glowTexture.colorSpace = THREE.SRGBColorSpace;
+    this.spotGlow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: glowTexture,
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.4,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    this.spotGlow.scale.set(4.2, 4.2, 1);
+    this.spotGlow.position.set(spot0.x, spot0.y + 4.1, spot0.z);
+    this.scene.add(this.spotGlow);
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(200, 200),
-      new THREE.MeshStandardMaterial({ color: PALETTE.light.floor, roughness: 0.95 }),
+      new THREE.MeshStandardMaterial({ color: PALETTE.light.floor, roughness: 0.78, metalness: 0.05 }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.name = "archive-floor";
@@ -339,9 +401,9 @@ export class ArchiveScene {
       container.clientWidth,
       container.clientHeight,
     );
-    this.ao.kernelRadius = lightingLook === "refined" ? 0.44 : 0.38;
+    this.ao.kernelRadius = lightingLook === "refined" ? 0.5 : 0.48;
     this.ao.minDistance = 0.001;
-    this.ao.maxDistance = 0.09;
+    this.ao.maxDistance = 0.13;
     this.composer.addPass(this.ao);
     this.bokeh = new SharedDepthBokeh(this.scene, this.camera, {
       focus: 25,
@@ -383,15 +445,20 @@ export class ArchiveScene {
       // 带「RHINE LAB」字样的两块网格：博客用的模型里已经裁掉，这里再兜底一次。
       if (name === "Carbon_Ink" || name === "Moulded_Lettering") continue;
       const mat = source.clone() as THREE.MeshPhysicalMaterial;
-      mat.envMapIntensity = 0.6;
+      mat.envMapIntensity = 1.25;
       if (name === "Frosted_Polymer") {
         mat.color.set(light.polymer);
-        mat.transmission = 0.9;
-        mat.thickness = 0.12;
-        mat.roughness = 0.21;
-        mat.ior = 1.46;
+        mat.transmission = 0.98;
+        mat.thickness = 0.38;
+        mat.roughness = 0.06;
+        mat.ior = 1.5;
+        mat.clearcoat = 1;
+        mat.clearcoatRoughness = 0.03;
+        mat.dispersion = 3;
+        mat.iridescence = 0.12;
+        mat.iridescenceIOR = 1.3;
         mat.attenuationColor = new THREE.Color(light.polymerAttenuation);
-        mat.attenuationDistance = 2;
+        mat.attenuationDistance = 3;
       }
       if (name === "Internal_Ceramic") {
         mat.color.set(light.ceramic);
@@ -400,14 +467,14 @@ export class ArchiveScene {
       if (name === "Printed_Label") mat.color.set(light.label);
       if (name === "Ivory_Edges") {
         mat.color.set(light.edges);
-        mat.roughness = 0.31;
-        mat.transmission = 0.65;
-        mat.thickness = 0.04;
+        mat.roughness = 0.14;
+        mat.transmission = 0.8;
+        mat.thickness = 0.1;
       }
       if (name === "Optical_Diffuser") {
         mat.color.set(light.diffuser);
         mat.transmission = 0;
-        mat.roughness = 0.7;
+        mat.roughness = 0.58;
       }
       if (name === "Subsurface_Optics") {
         mat.color.set(light.optics);
@@ -430,7 +497,13 @@ export class ArchiveScene {
       if (name === "Index_Inlay") mat.color.set(light.indexInlay);
       if (name === "Amber_Optical_Inlay") mat.color.set(light.ring);
       if (name === "Champagne_Index") mat.color.set(light.champagne);
+      // 编号嵌条 / 强调色部件带一点自发光，在高光之外保持冰蓝识别度。
+      if (name === "Index_Inlay" || isAccentSurface(name)) {
+        mat.emissive.set(light.indexInlay);
+        mat.emissiveIntensity = 0.1;
+      }
       configureInternalOptics(name, mat);
+      if (mat.transmission > 0) this.heroGlasses.push(mat);
       const selectedMesh = new THREE.Mesh(geom, mat);
       selectedMesh.userData.surface = name;
       selectedMesh.castShadow = name === "Optical_Diffuser";
@@ -452,7 +525,9 @@ export class ArchiveScene {
       }
       const arrayMat = mat.clone();
       if (name === "Frosted_Polymer") {
-        arrayMat.transmission = 0.78;
+        // HQ / ECO 保留阵列折射来撑玻璃层次；LITE 的 fast 材质会把它关掉，
+        // 极弱设备才牺牲玻璃换帧率。
+        arrayMat.transmission = 0.7;
         arrayMat.transparent = false;
         arrayMat.color.set(light.arrayPolymer);
         arrayMat.onBeforeCompile = (shader) => {
@@ -469,19 +544,27 @@ export class ArchiveScene {
             `#include <color_fragment>\ndiffuseColor.rgb *= mix(${glsl(light.shadeLow)}, ${glsl(light.shadeHigh)}, smoothstep(0.1, 1.0, vPanelHeight));`,
           );
         };
-        arrayMat.roughness = 0.28;
-        arrayMat.clearcoat = 0.3;
-        arrayMat.clearcoatRoughness = 0.25;
+        arrayMat.roughness = 0.1;
+        arrayMat.clearcoat = 0.9;
+        arrayMat.clearcoatRoughness = 0.06;
+        arrayMat.envMapIntensity = 1.25;
       }
-      if (name === "Optical_Diffuser") arrayMat.color.set(light.arrayDiffuser);
+      if (name === "Optical_Diffuser") {
+        arrayMat.color.set(light.arrayDiffuser);
+        arrayMat.roughness = 0.62;
+      }
       if (name === "Ivory_Edges") {
         arrayMat.transmission = 0;
         arrayMat.color.set(light.arrayEdges);
-        arrayMat.roughness = 0.38;
+        arrayMat.roughness = 0.28;
+        arrayMat.metalness = 0.04;
       }
       if (name === "Index_Inlay") {
         arrayMat.color.set(light.arrayIndex);
-        arrayMat.metalness = 0.05;
+        arrayMat.metalness = 0.22;
+        arrayMat.roughness = 0.3;
+        arrayMat.emissive.set(light.indexInlay);
+        arrayMat.emissiveIntensity = 0.12;
       }
       this.appearance.register(name, mat, arrayMat);
       this.themeAttribute ??= new THREE.InstancedBufferAttribute(new Float32Array(count), 1).setUsage(THREE.DynamicDrawUsage);
@@ -500,10 +583,7 @@ export class ArchiveScene {
     this.scene.add(this.shadowCoverage.mesh);
     this.labelCanvas.width = 1024;
     this.labelCanvas.height = 440;
-    this.labelTexture = new THREE.CanvasTexture(this.labelCanvas);
-    this.labelTexture.colorSpace = THREE.SRGBColorSpace;
-    this.labelTexture.anisotropy =
-      this.renderer.capabilities.getMaxAnisotropy();
+    this.labelTexture = this.createLabelTexture(this.labelCanvas);
     const label = new THREE.Mesh(
       new THREE.PlaneGeometry(0.99, 0.46),
       new THREE.MeshBasicMaterial({
@@ -696,18 +776,16 @@ export class ArchiveScene {
     if (this.looping && changed && this.loaded && this.lift.value > 0.0001) {
       const group = this.model.clone(true);
       const label = group.children[group.children.length - 1] as THREE.Mesh;
-      const canvas = document.createElement("canvas");
-      canvas.width = 1024;
-      canvas.height = 440;
-      canvas.getContext("2d")!.drawImage(this.labelCanvas, 0, 0);
-      const map = new THREE.CanvasTexture(canvas);
-      map.colorSpace = THREE.SRGBColorSpace;
+      // 回落副本直接接管当前标签纹理（已在 GPU 上，零上传）；主模型换一张新画布/纹理，
+      // 随后 drawLabel 只上传这一张。原来每次切换要把画布复制一份再上传，
+      // 加上主标签重传，一次切换两次「2D 画布 → WebGL」上传，各带一次 GPU 同步，拖动时逐次掉帧。
       label.material = new THREE.MeshBasicMaterial({
-        map,
+        map: this.labelTexture,
         toneMapped: false,
         transparent: true,
         depthWrite: false,
       });
+      this.swapLabelTexture();
       // Clone carries the selected label material by reference. Replace it
       // before installing appearance shaders, so theme hooks are not appended
       // to the original label a second time on every selection.
@@ -754,10 +832,31 @@ export class ArchiveScene {
     this.pulses.push({ ...cell, time: this.clock });
     this.pulses = this.pulses.slice(-6);
   }
+  /**
+   * 标签画布用 willReadFrequently（CPU 位图）：上传到 WebGL 时直接拷内存，
+   * 不必像 GPU 加速的 2D 画布那样先从显存回读，避免每次上传都让 GPU 同步等待。
+   */
+  private createLabelTexture(canvas: HTMLCanvasElement) {
+    canvas.getContext("2d", { willReadFrequently: true });
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    return texture;
+  }
+  /** 主模型换用一张新的标签画布/纹理（旧纹理已交给回落副本，随副本一起释放）。 */
+  private swapLabelTexture() {
+    const canvas = document.createElement("canvas");
+    canvas.width = this.labelCanvas.width;
+    canvas.height = this.labelCanvas.height;
+    this.labelCanvas = canvas;
+    this.labelTexture = this.createLabelTexture(canvas);
+    const main = this.model.children[this.model.children.length - 1] as THREE.Mesh;
+    (main.material as THREE.MeshBasicMaterial).map = this.labelTexture;
+  }
   private drawLabel(index: number) {
     this.labelIndex = index;
     if (!this.labelTexture) return;
-    drawArchiveLabel(this.labelCanvas.getContext("2d")!, index);
+    drawArchiveLabel(this.labelCanvas.getContext("2d", { willReadFrequently: true })!, index);
     this.labelTexture.needsUpdate = true;
   }
   private ensureInstanceCapacity(required: number) {
@@ -1166,12 +1265,45 @@ export class ArchiveScene {
     this.last = time;
     this.clock = time;
     if (!this.loaded) return;
+    // READ FULL TEXT 运镜进度（时间驱动，暂停/慢帧也不会卡在半路）
+    if (this.readFocusTarget !== this.readFocus) {
+      if (this.readFocusStart < 0) this.readFocusStart = time;
+      const t = Math.min(1, (time - this.readFocusStart) / this.readFocusDuration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      this.readFocus = this.readFocusFrom + (this.readFocusTarget - this.readFocusFrom) * eased;
+      if (t >= 1) this.readFocusStart = -1;
+    }
     this.flushHover();
     const step = !this.motion.surfaceTransitions ? 1 : Math.min(elapsed, .25) / 1.1;
     this.presence += Math.sign(this.presenceTarget - this.presence) * Math.min(step, Math.abs(this.presenceTarget - this.presence));
     this.renderer.domElement.style.opacity = String(THREE.MathUtils.clamp(this.presence / .16, 0, 1));
     this.theme.beginFrame();
     themeEnvironment(this.scene, this.renderer, this.themeAmount);
+    if (this.readFocus > 0) {
+      const dim = 1 - 0.52 * this.readFocus;
+      for (const entry of this.readDim) entry.material.color.copy(entry.color).multiplyScalar(dim);
+      if (this.readDimBackground && this.scene.background instanceof THREE.Color) {
+        this.scene.background.copy(this.readDimBackground).multiplyScalar(dim);
+      }
+      if (this.readDimFloor) this.readDimFloor.material.color.copy(this.readDimFloor.color).multiplyScalar(dim);
+      if (this.readDimFog && this.scene.fog) this.scene.fog.color.copy(this.readDimFog).multiplyScalar(dim);
+    }
+    // 聚光灯平滑跟随当前选中的档案，并在详情态稍微收力。
+    const focusX = (this.selectedCell.lane - 2) * COLUMN_SPACING;
+    const focusZ = (this.selectedCell.row - 15.5) * ROW_SPACING;
+    const follow = 1 - Math.exp(-dt * 5);
+    this.spot.position.x += (focusX - 3.5 - this.spot.position.x) * follow;
+    this.spot.position.y += (7.4 - this.spot.position.y) * follow;
+    this.spot.position.z += (focusZ + 7 - this.spot.position.z) * follow;
+    this.spot.target.position.x += (focusX - this.spot.target.position.x) * follow;
+    this.spot.target.position.y += (-3.2 - this.spot.target.position.y) * follow;
+    this.spot.target.position.z += (focusZ - this.spot.target.position.z) * follow;
+    this.spot.intensity = 360 * (1 - 0.35 * this.themeAmount) * (1 - this.detail * 0.5);
+    this.spotGlow.position.x += (focusX - this.spotGlow.position.x) * follow;
+    this.spotGlow.position.y += (-0.5 - this.spotGlow.position.y) * follow;
+    this.spotGlow.position.z += (focusZ - this.spotGlow.position.z) * follow;
+    (this.spotGlow.material as THREE.SpriteMaterial).opacity =
+      (0.32 + 0.1 * (1 - this.themeAmount)) * (1 - this.detail * 0.6);
     const blend = 1 - Math.exp(-dt * (this.motion.selectionTransition ? 2.8 : 35));
     const detailBlend = 1 - Math.exp(-dt * (this.motion.detailTransition ? 2.8 : 35));
     this.reveal = cinematic
@@ -1616,6 +1748,20 @@ export class ArchiveScene {
       ),
       cameraBlend,
     );
+    if (this.readFocus > 0.0001) {
+      this.model.updateMatrixWorld(true);
+      const bounds = new THREE.Box3().setFromObject(this.model);
+      const readAim = bounds.isEmpty()
+        ? this.model.position.clone().add(new THREE.Vector3(0, 1.85, 0))
+        : bounds.getCenter(new THREE.Vector3());
+      const readCamera = readAim
+        .clone()
+        .addScaledVector(viewDirection, distance * (1 - 0.14 * this.readFocus));
+      this.camera.position.lerp(readCamera, this.readFocus);
+      this.cameraAim.lerp(readAim, this.readFocus);
+      this.camera.lookAt(this.cameraAim);
+      this.model.rotation.y = THREE.MathUtils.lerp(this.model.rotation.y, 0, this.readFocus);
+    }
     const fog = this.scene.fog as THREE.Fog;
     // The camera position is damped after its target distance changes. Anchor
     // fog to the rendered camera, or entry puts the array behind the far plane
@@ -1768,7 +1914,15 @@ export class ArchiveScene {
       shadow.floats(...object.matrixWorld.elements);
       if (object instanceof THREE.InstancedMesh) shadow.add(object.count, object.instanceMatrix.version);
     });
-    this.renderer.shadowMap.needsUpdate = shadow.end() || this.light.shadow.needsUpdate;
+    // 阴影降频：空闲动画每帧都在动，但阴影不需要每帧重画（最多约 11 次/秒）。
+    const wantsShadow = shadow.end() || this.light.shadow.needsUpdate;
+    if (wantsShadow && time - this.lastShadowUpdate > 0.09) {
+      this.renderer.shadowMap.needsUpdate = true;
+      this.lastShadowUpdate = time;
+      this.light.shadow.needsUpdate = false;
+    } else {
+      this.renderer.shadowMap.needsUpdate = false;
+    }
     if (this.superPerformance) this.renderer.render(this.scene, this.camera);
     else this.composer.render();
   }
@@ -1778,6 +1932,91 @@ export class ArchiveScene {
       .localToWorld(new THREE.Vector3(x, y, 0.255))
       .project(this.camera);
     return [(p.x + 1) * this.container.clientWidth / 2, (1 - p.y) * this.container.clientHeight / 2];
+  }
+  /** 开始 READ FULL TEXT 的轻量运镜：镜头推近并正对选中档案。 */
+  beginReadFocus(duration = 0.42) {
+    this.readFocusFrom = this.readFocus;
+    this.readFocusTarget = 1;
+    this.readFocusDuration = Math.max(0.05, duration);
+    this.readFocusStart = -1;
+    // 记录阵列/背景/地面的当前颜色，运镜时在 3D 里压暗，截帧会自带压暗。
+    this.readDim = [];
+    const seen = new Set<THREE.Material>();
+    for (const inst of this.instances) {
+      const mat = inst.material as THREE.MeshPhysicalMaterial;
+      if (!mat || seen.has(mat) || !(mat.color instanceof THREE.Color)) continue;
+      seen.add(mat);
+      this.readDim.push({ material: mat, color: mat.color.clone() });
+    }
+    this.readDimBackground = this.scene.background instanceof THREE.Color
+      ? this.scene.background.clone()
+      : undefined;
+    const floor = this.scene.getObjectByName("archive-floor") as THREE.Mesh | undefined;
+    const floorMaterial = floor?.material as THREE.MeshStandardMaterial | undefined;
+    this.readDimFloor = floorMaterial
+      ? { material: floorMaterial, color: floorMaterial.color.clone() }
+      : undefined;
+    this.readDimFog = this.scene.fog?.color.clone();
+    this.renderState.invalidate();
+    this.shadowState.invalidate();
+  }
+  /** 按 READ FULL TEXT 的最终镜头位姿预算档案盒屏幕矩形（CSS 像素，相对舞台）。 */
+  readCaseRectFinal(): { x: number; y: number; width: number; height: number } | null {
+    if (!this.model.children.length) return null;
+    this.model.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(this.model);
+    if (box.isEmpty()) return null;
+    const aim = box.getCenter(new THREE.Vector3());
+    const distance = this.camera.position.distanceTo(this.cameraAim);
+    const direction = this.cameraAim.clone().sub(this.camera.position).normalize();
+    const camera = this.camera.clone();
+    camera.position.copy(aim).addScaledVector(direction, -distance * 0.86);
+    camera.lookAt(aim);
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+    const cssW = this.container.clientWidth;
+    const cssH = this.container.clientHeight;
+    const v = new THREE.Vector3();
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      v.set(
+        i & 1 ? box.max.x : box.min.x,
+        i & 2 ? box.max.y : box.min.y,
+        i & 4 ? box.max.z : box.min.z,
+      ).project(camera);
+      const x = ((v.x + 1) * 0.5) * cssW;
+      const y = ((1 - v.y) * 0.5) * cssH;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX)) return null;
+    return {
+      x: Math.max(0, minX),
+      y: Math.max(0, minY),
+      width: Math.max(1, Math.min(cssW - Math.max(0, minX), maxX - minX)),
+      height: Math.max(1, Math.min(cssH - Math.max(0, minY), maxY - minY)),
+    };
+  }
+  /**
+   * 揭幕前预热：并行编译全部着色器（KHR_parallel_shader_compile），再离屏跑一遍完整后处理链路。
+   * 档案盒玻璃是 transmission + dispersion + iridescence + clearcoat 的物理材质，
+   * 不预热时 three.js 会在第一次绘制时同步编译，揭幕头几帧每帧 ~90ms。
+   * 此时画布 opacity 为 0（presence 未起），预热帧对用户不可见。
+   */
+  async warmup() {
+    if (!this.loaded) return;
+    this.scene.updateMatrixWorld();
+    try {
+      await this.renderer.compileAsync(this.scene, this.camera);
+    } catch {
+      /* 不支持并行编译时退回到下面的同步首帧 */
+    }
+    this.renderer.shadowMap.needsUpdate = true;
+    if (this.superPerformance) this.renderer.render(this.scene, this.camera);
+    else this.composer.render();
+    this.renderState.invalidate();
   }
   get decryptionFrame() { return this.decryption.frame; }
   finishDecryption() { this.decryption.finish(); }

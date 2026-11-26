@@ -11,11 +11,16 @@
 <script>
   import * as THREE from 'three';
 
-  (() => {
-    const wrap = document.querySelector('.avatar-particles');
-    if (!wrap) return;
+  // 每次进入「关于」页都要重新挂载：ClientRouter 不会重跑已执行过的模块脚本，
+  // 原来的立即执行写法只在第一次访问时生效。挂载推迟到页面切换动画结束后的空闲时刻，
+  // 避免 WebGL 初始化（着色器编译、头像采样）的长帧压在过渡动画上。
+  const start = () => {
+    const wrap = document.querySelector<HTMLElement>('.avatar-particles');
+    if (!wrap || wrap.dataset.bound) return;
     const canvas = wrap.querySelector('canvas');
     if (!canvas) return;
+    wrap.dataset.bound = '1';
+    let disposed = false;
     const host = wrap.parentElement || wrap;
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -180,7 +185,9 @@
       }
     };
     applyTheme();
-    new MutationObserver(applyTheme).observe(document.documentElement, {
+    // 观察的是常驻的 <html>：必须在 dispose 里断开，否则每次进「关于」页都多留一个（连同整套 WebGL 闭包）
+    const themeMo = new MutationObserver(applyTheme);
+    themeMo.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['data-theme', 'data-skin'],
     });
@@ -203,9 +210,8 @@
     };
     resize();
     window.addEventListener('resize', resize);
-    if ('ResizeObserver' in window) {
-      new ResizeObserver(resize).observe(wrap);
-    }
+    const ro = 'ResizeObserver' in window ? new ResizeObserver(resize) : null;
+    ro?.observe(wrap);
 
     // ---------- 弹簧物理参数（Harness 流体感 + AK 弹性入口） ----------
     const SPRING = 0.045; // 基础弹簧系数（随位移自适应，见收拢逻辑）
@@ -273,11 +279,13 @@
 
     // ---------- 可见性暂停 ----------
     const visible = { on: true };
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver((ents) => {
-        visible.on = ents[0].isIntersecting;
-      }).observe(wrap);
-    }
+    const io =
+      'IntersectionObserver' in window
+        ? new IntersectionObserver((ents) => {
+            visible.on = ents[0].isIntersecting;
+          })
+        : null;
+    io?.observe(wrap);
 
     // ---------- 粒子数据（由头像 mask 生成） ----------
     let geo = null;
@@ -386,7 +394,8 @@
     let entranceT = 3.5; // 入口散开期间不限制位移（让粒子从远处飞回）
     let started = false;
     const start = () => {
-      if (started || !geo) return;
+      // disposed：头像图片在离开页面之后才加载完时，不要在已释放的渲染器上重新起动画循环
+      if (started || !geo || disposed) return;
       started = true;
       let animT = 0;
       let lastFrame = null;
@@ -470,7 +479,17 @@
     };
 
     // ---------- 释放资源：防 WebGL 上下文耗尽（SPA 导航/离开页面） ----------
+    // 每次挂载登记的观察器/监听器全部在这里撤掉：页面改成「每次进入都重新挂载」后，
+    // 漏掉任何一个都会让上一次的渲染器、粒子数组整套闭包常驻内存，并在每次换页时被白白回调。
     const dispose = () => {
+      if (disposed) return;
+      disposed = true;
+      themeMo.disconnect();
+      ro?.disconnect();
+      io?.disconnect();
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('pagehide', dispose);
+      document.removeEventListener('astro:before-preparation', dispose);
       renderer.setAnimationLoop(null);
       renderer.dispose();
       material.dispose();
@@ -478,5 +497,32 @@
     };
     window.addEventListener('pagehide', dispose);
     document.addEventListener('astro:before-preparation', dispose);
-  })();
+  };
+
+  // 导航代数：每次开始离开当前页就 +1。等待中的挂载醒来时代数变了，说明这一页已经在离开，不再挂载，
+  // 否则会把 WebGL 挂到正在离开的页面上，并一直活到下一次导航。
+  let navGen = 0;
+  document.addEventListener('astro:before-preparation', () => navGen++);
+
+  const schedule = () => {
+    if (!document.querySelector('.avatar-particles')) return;
+    const gen = navGen;
+    const run = () => {
+      const go = () => gen === navGen && start();
+      const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+      if (w.requestIdleCallback) w.requestIdleCallback(go, { timeout: 600 });
+      else window.setTimeout(go, 120);
+    };
+    const root = document.documentElement;
+    if (!root.hasAttribute('data-astro-transition')) return run();
+    // 页面切换进行中：等 Astro 移除 data-astro-transition（过渡结束）再挂载
+    const mo = new MutationObserver(() => {
+      if (gen !== navGen) return mo.disconnect();
+      if (root.hasAttribute('data-astro-transition')) return;
+      mo.disconnect();
+      run();
+    });
+    mo.observe(root, { attributes: true, attributeFilter: ['data-astro-transition'] });
+  };
+  document.addEventListener('astro:page-load', schedule);
 </script>

@@ -9,20 +9,23 @@
  */
 export const PALETTE = {
   light: {
-    /** 画布底色与雾色 = 页面底色 */
-    paper: "#e9f3f7",
-    floor: "#bfd2dd",
-    /** 环境光：天空 / 地面反光，主光 / 补光 */
-    sky: "#f6fbff",
-    ground: "#8fa8b8",
-    key: "#f3faff",
-    fill: "#ffffff",
+    /** 画布底色与雾色：比页面底色深一档，让白色玻璃档案浮起来 */
+    paper: "#c6ddea",
+    floor: "#6f8ea3",
+    /** 环境光：天空 / 地面反光，主光 / 补光 / 轮廓光 */
+    sky: "#e6f5ff",
+    ground: "#4a687d",
+    key: "#ffffff",
+    fill: "#c7deed",
+    rim: "#7cc7ea",
+    /** 选中档案的聚光灯：冰蓝，保证在白色档案上也能看出光池 */
+    spot: "#4fb4e0",
     /** 被抽出的那一份档案（完整材质） */
-    polymer: "#fbfdff",
-    polymerAttenuation: "#dfeaf0",
-    ceramic: "#b6c3ca",
+    polymer: "#f4fbff",
+    polymerAttenuation: "#bcd6e4",
+    ceramic: "#9fb2bd",
     label: "#e6eef2",
-    edges: "#e3edf2",
+    edges: "#c7dde9",
     diffuser: "#d6e1e7",
     optics: "#a2b4be",
     opticalEdges: "#c0d0d9",
@@ -35,14 +38,14 @@ export const PALETTE = {
     indexInlay: "#3f9bc2",
     ring: "#3f9bc2",
     champagne: "#7ec8e3",
-    /** 阵列里密排的档案（简化材质） */
-    arrayPolymer: "#f2f9fd",
-    arrayDiffuser: "#48667f",
-    arrayEdges: "#eef7fb",
-    arrayIndex: "#cfe2ec",
+    /** 阵列里密排的档案（简化材质）：不透明磨砂玻璃 */
+    arrayPolymer: "#c9dfec",
+    arrayDiffuser: "#10232f",
+    arrayEdges: "#b4cfdf",
+    arrayIndex: "#5fb6d8",
     /** 面板自下而上的明暗渐变（乘色）：底部沉在相邻档案的阴影里 */
-    shadeLow: [0.2, 0.31, 0.4] as const,
-    shadeHigh: [0.95, 0.985, 1.0] as const,
+    shadeLow: [0.05, 0.1, 0.16] as const,
+    shadeHigh: [1.0, 1.0, 1.0] as const,
   },
   dark: {
     paper: "#0d1b22",

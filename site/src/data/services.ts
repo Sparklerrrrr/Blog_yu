@@ -20,9 +20,9 @@ export interface Service {
 export const SERVICES: Service[] = [
   {
     name: '订阅转换',
-    desc: '把订阅链接或节点链接转换成 Mihomo、Surge、sing-box 等客户端配置。',
-    features: ['多客户端格式与模板', '包含 / 排除、重命名、User-Agent 等高级选项', '订阅预览、二维码与一键复制'],
-    tags: ['SubConverter', 'Mihomo', 'Surge'],
+    desc: '把订阅链接或节点链接转换成 Mihomo、Surge、sing-box 等客户端配置，支持 CF 优选 IP 批量替换。',
+    features: ['20+ 客户端格式、按订阅设置 Provider 与诊断', 'CF 优选 IP 替换（附 CloudflareSpeedTest 优选器指引）', '订阅预览、二维码与一键复制'],
+    tags: ['SubConverter', 'Mihomo', 'CF 优选'],
     note: '点击卡片进入转换器',
     url: '/services/subconverter/',
   },

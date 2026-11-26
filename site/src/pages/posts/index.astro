@@ -2,7 +2,6 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleCard from '../../components/ArticleCard.astro';
 import EmptyState from '../../components/EmptyState.astro';
-import ArchiveTerminal from '../../components/ArchiveTerminal.astro';
 import { CATEGORIES, countTags, getPosts } from '../../lib/site';
 
 const posts = await getPosts();
@@ -11,8 +10,7 @@ const tags = countTags(posts);
 ---
 
 <BaseLayout title="文章">
-  <ArchiveTerminal />
-  <section class="container posts-list-section" id="post-list">
+  <section class="container">
     <div class="panel reveal-x">
       <header class="page-head">
         <p class="micro-label">ARCHIVE // 文章</p>

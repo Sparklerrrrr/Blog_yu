@@ -15,6 +15,24 @@
   outline: none;
   --at-cat: var(--accent);
 }
+
+/* 全屏模式：归档页铺满固定导航以下，不再有大卡片边框/圆角/阴影 */
+.archive-terminal.is-fullscreen {
+  width: 100%;
+  margin: 0;
+}
+.archive-terminal.is-fullscreen .at-stage {
+  height: calc(100svh - var(--nav-h, 60px));
+  margin-top: var(--nav-h, 60px);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* 归档页只保留终端与导航，滚动条和页脚在三维就绪后隐藏 */
+body.archive-page .site-footer,
+body.archive-page .top-glow { display: none; }
+body.archive-page:has(.archive-terminal[data-state="ready"]) { overflow: hidden; }
 .archive-terminal:focus-visible .at-stage { box-shadow: 0 0 0 2px var(--accent), var(--shadow-1); }
 
 .at-stage {
@@ -25,7 +43,10 @@
   border-radius: 24px;
   border: 1px solid var(--line);
   background: var(--bg);
-  box-shadow: var(--shadow-1);
+  box-shadow:
+    var(--shadow-1),
+    inset 0 1px 0 color-mix(in srgb, var(--accent-soft) 55%, transparent),
+    inset 0 -90px 110px -90px color-mix(in srgb, var(--text) 24%, transparent);
   container-type: size;
   color: var(--text);
   font-family: var(--font-display);
@@ -50,11 +71,54 @@
   background:
     linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 78%, transparent) 10%, transparent 36%),
     linear-gradient(0deg, color-mix(in srgb, var(--bg) 92%, transparent) 0%, transparent 22%),
-    radial-gradient(ellipse at 46% 48%, transparent 36%, color-mix(in srgb, var(--bg) 40%, transparent) 88%);
+    radial-gradient(ellipse at 46% 48%, transparent 42%, color-mix(in srgb, var(--text) 15%, transparent) 100%);
 }
 .at-atmosphere::after {
   opacity: var(--detail-shade, 0);
   background: linear-gradient(90deg, transparent 40%, color-mix(in srgb, var(--bg) 22%, transparent) 54%, color-mix(in srgb, var(--bg) 92%, transparent) 63%, var(--bg) 100%);
+}
+
+/* 不支持 WebGL2 / JS 时，归档页的兜底入口 */
+.archive-fallback {
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  width: min(100% - 32px, 1760px);
+  margin: 120px auto;
+  padding: 56px 24px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.archive-fallback[hidden] { display: none; }
+.archive-fallback p { margin: 0; }
+
+/* READ FULL TEXT：右栏逐行退场 + 左侧标签/档案堆退出
+   只动 opacity / transform（走合成线程）。filter: blur 每帧都要在主线程重新栅格化，
+   和同时在逐帧渲染的 WebGL 叠在一起会在点击瞬间掉帧，所以不用。 */
+.is-reading .at-detail-content > * {
+  animation: at-row-out 300ms cubic-bezier(.4,0,.2,1) calc(var(--row,0) * 30ms) both;
+  will-change: opacity, transform;
+}
+@keyframes at-row-out {
+  to { opacity: 0; transform: translateX(16px) scaleX(.98); }
+}
+.is-reading .at-brand,
+.is-reading .at-back,
+.is-reading .at-object,
+.is-reading .at-sysnav,
+.is-reading .at-footer {
+  animation: at-ui-out 320ms cubic-bezier(.4,0,.2,1) 40ms both;
+  will-change: opacity, transform;
+}
+@keyframes at-ui-out {
+  to { opacity: 0; transform: translateY(-6px); }
+}
+/* 阅读转场：右侧为正文留出的浅色压暗随右栏一起退去，背景统一由 3D 场景压暗 */
+.is-reading .at-atmosphere::after {
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(.4,0,.2,1);
 }
 
 /* 解密扫描线 */
@@ -74,11 +138,28 @@
 .at-sysnav button span { font-size: 1.3em; }
 
 /* ---------- 阵列 HUD ---------- */
-.at-archive-ui { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.8s ease 0.3s; }
+.at-archive-ui {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 0.2s ease;
+  /* 总览文字直接压在档案盒纹理上：加一圈贴身的底色光晕（静态绘制，不随 3D 逐帧重绘） */
+  text-shadow:
+    0 0 1px color-mix(in srgb, var(--bg) 95%, transparent),
+    0 0 7px color-mix(in srgb, var(--bg) 75%, transparent);
+}
+/* 进入阵列慢慢浮现；离开阵列（打开档案）0.2s 快速退出，避免和详情栏叠在一起 */
+[data-mode="archive"] .at-archive-ui { transition: opacity 0.8s ease 0.3s; }
 .at-archive-ui button, .at-archive-ui a { pointer-events: auto; }
 [data-mode="archive"] .at-archive-ui { opacity: 1; }
 
 .at-callout { position: absolute; left: 50.52%; top: 43%; width: 47%; }
+/* 文件信息区背后一层很淡的径向底色，让标题/编号从档案纹理里浮出来 */
+.at-callout::before {
+  content: "";
+  position: absolute;
+  inset: calc(-70 * var(--u)) calc(-40 * var(--u)) calc(-70 * var(--u)) calc(-90 * var(--u));
+  z-index: -1;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--bg) 58%, transparent), color-mix(in srgb, var(--bg) 22%, transparent) 70%, transparent);
+  pointer-events: none;
+}
 .at-eyebrow { font-size: max(10px, calc(12 * var(--u))); letter-spacing: 0.12em; color: var(--text-dim); margin-bottom: calc(22 * var(--u)); }
 .at-eyebrow > span { margin-left: calc(14 * var(--u)); }
 .at-eyebrow-cat { color: var(--at-cat); font-weight: 700; }
@@ -108,6 +189,9 @@
 .at-filenav { position: absolute; left: 26.25%; bottom: calc(124 * var(--u)); display: flex; align-items: center; gap: calc(30 * var(--u)); }
 .at-filenav > button, .at-colnav > button { width: max(36px, calc(46 * var(--u))); height: max(36px, calc(46 * var(--u))); font-size: max(20px, calc(26 * var(--u))) !important; border-radius: 6px; transition: background-color 0.3s; }
 .at-filenav > button:hover, .at-colnav > button:hover { background: color-mix(in srgb, var(--accent-soft) 30%, transparent); }
+/* 只有 1 个分类 / 1 篇文章：箭头置灰，悬停不再提示可点；点击时由 JS 做「到头」弹动 */
+.at-filenav[data-single] > button, .at-colnav[data-single] > button { opacity: 0.32; cursor: default; transition: opacity 0.3s, background-color 0.3s; }
+.at-filenav[data-single] > button:hover, .at-colnav[data-single] > button:hover { opacity: 0.5; background: none; }
 .at-ticks { display: flex; align-items: center; gap: calc(12 * var(--u)); max-width: calc(320 * var(--u)); overflow: hidden; }
 .at-ticks button { position: relative; flex: 0 0 auto; width: 14px; height: 40px; }
 .at-ticks button::before { content: ""; position: absolute; left: 6px; top: 14px; width: 2px; height: 12px; background: var(--text-faint); transition: height 0.4s, top 0.4s, background 0.4s; }
@@ -119,11 +203,12 @@
 .at-colnav > div > span { font-size: max(9px, calc(10 * var(--u))); letter-spacing: 0.14em; color: var(--text-dim); }
 .at-col-name { font-size: max(12px, calc(15 * var(--u))); font-weight: 600; color: var(--at-cat); transition: color 0.6s ease; }
 
-.at-hint { position: absolute; left: 26.3%; bottom: calc(56 * var(--u)); margin: 0; font-size: max(10px, calc(11 * var(--u))); letter-spacing: 0.08em; color: var(--text-faint); }
+.at-hint { position: absolute; left: 26.3%; bottom: calc(56 * var(--u)); margin: 0; font-size: max(10px, calc(11 * var(--u))); letter-spacing: 0.08em; color: var(--text-dim); text-shadow: 0 1px 2px color-mix(in srgb, var(--bg) 85%, transparent); }
 
 /* ---------- 详情 ---------- */
 .at-detail-ui { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity 0.3s ease; }
-[data-mode="detail"] .at-detail-ui { opacity: 1; }
+/* 进入详情：等阵列总览（0.2s 淡出）基本退干净再淡入，避免两层文字叠在一起 */
+[data-mode="detail"] .at-detail-ui { opacity: 1; transition: opacity 0.3s ease 0.15s; }
 .at-detail-ui button, .at-detail-content { pointer-events: auto; }
 .at-back { position: absolute; left: var(--edge); top: calc(270 * var(--u)); display: flex; align-items: center; gap: 18px; font-size: max(18px, calc(24 * var(--u))) !important; }
 .at-back span { font-size: max(11px, calc(12 * var(--u))); letter-spacing: 0.1em; }
@@ -141,6 +226,7 @@
   width: min(calc(660 * var(--u)), 37%);
   max-height: calc(100% - 270 * var(--u));
   overflow-y: auto;
+  overflow-x: hidden; /* 朦胧遮罩外扩、退场右移都不能撑出横向滚动条 */
   scrollbar-width: thin;
   opacity: 0;
   user-select: text;
@@ -159,7 +245,7 @@
 .at-tabs button span { margin-left: 6px; font-size: max(13px, calc(15 * var(--u))); }
 .at-tabs button[aria-selected="true"] { color: var(--text) !important; }
 .at-tab-bar { position: absolute; left: 0; bottom: -1px; width: 1px; height: 2px; background: var(--at-cat); transform-origin: left center; transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1); }
-.at-tab-panel { min-height: calc(170 * var(--u)); max-height: calc(220 * var(--u)); padding-top: calc(18 * var(--u)); overflow-y: auto; scrollbar-width: thin; }
+.at-tab-panel { min-height: calc(170 * var(--u)); max-height: calc(220 * var(--u)); padding-top: calc(18 * var(--u)); overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
 .at-label { margin: 0; font-size: max(9px, calc(11 * var(--u))); letter-spacing: 0.12em; color: var(--text-faint); }
 .at-abstract { margin: 12px 0 0; font-family: var(--font-body); font-size: max(14px, calc(17 * var(--u))); line-height: 1.85; color: var(--text-dim); text-align: justify; }
 .at-empty { margin: 12px 0 0; font-size: 14px; color: var(--text-faint); }
@@ -172,35 +258,168 @@
 .at-related b { margin-right: 10px; font-size: 11px; color: var(--at-cat); }
 .at-related button { flex-shrink: 0; font-size: 11px !important; color: var(--text-dim) !important; }
 .at-actions { display: flex; align-items: center; gap: calc(28 * var(--u)); margin-top: calc(20 * var(--u)); }
+/* READ FULL TEXT：冰川磨砂板块
+   静止：半透明磨砂底 + 冰蓝细描边 + 顶部高光 + 左侧分类色竖条 + 四角 HUD 角标（呼应阅读转场）
+   悬停：分类色从竖条铺满、文字转白、光泽扫过、箭头滑出、角标外张、柔光跟随指针
+   按下：轻压 + 角标内收（预示「锁定」转场）。只动 transform / opacity，走合成线程。 */
 .at-solid {
+  --solid-c: var(--at-cat);
+  --solid-ease: cubic-bezier(.65, 0, .25, 1);
+  --solid-spring: cubic-bezier(.2, .9, .25, 1.15);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 46px;
-  padding: 0 18px;
-  border-radius: 4px;
-  background: var(--text);
-  color: var(--bg) !important;
+  gap: 16px;
+  min-height: 50px;
+  padding: 0 20px 0 26px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--solid-c) 36%, transparent);
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--bg-panel) 70%, transparent) 0%,
+      color-mix(in srgb, var(--accent-soft) 22%, transparent) 100%);
+  -webkit-backdrop-filter: blur(10px) saturate(1.25);
+  backdrop-filter: blur(10px) saturate(1.25);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 62%, transparent),
+    0 8px 22px -14px color-mix(in srgb, var(--solid-c) 70%, transparent);
+  color: var(--text) !important;
   font-size: max(11px, calc(12 * var(--u)));
-  letter-spacing: 0.1em;
-  transition: background-color 0.2s;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  transition:
+    color 0.32s ease 0.06s,
+    border-color 0.4s ease,
+    box-shadow 0.5s ease,
+    transform 0.28s var(--solid-spring);
 }
-.at-solid span { font-size: max(12px, calc(13 * var(--u))); letter-spacing: 0; opacity: 0.85; }
-.at-solid:hover { background: var(--at-cat); }
+/* 铺满的分类色底（从左侧竖条展开） */
+.at-solid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  /* 浅色主题：铺满的是浅冰川蓝（分类色 ~30% 混白），文字保持深色，对比度足够又不压抑 */
+  background: linear-gradient(100deg,
+    color-mix(in srgb, var(--solid-c) 34%, var(--bg-panel)) 0%,
+    color-mix(in srgb, var(--solid-c) 18%, var(--bg-panel)) 100%);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.5s var(--solid-ease);
+}
+/* 跟随指针的柔光 */
+.at-solid::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(140px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in srgb, #fff 32%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.at-solid__bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  z-index: -1;
+  background: var(--solid-c);
+  transition: opacity 0.3s ease 0.2s;
+}
+.at-solid__sheen {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, #fff 45%, transparent) 50%, transparent 70%);
+  transform: translateX(-110%);
+  pointer-events: none;
+}
+.at-solid__c {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 0 solid currentColor;
+  opacity: 0.55;
+  transition: transform 0.4s var(--solid-spring), opacity 0.3s ease;
+}
+.at-solid__c.c0 { left: 6px; top: 6px; border-top-width: 1.5px; border-left-width: 1.5px; }
+.at-solid__c.c1 { right: 6px; top: 6px; border-top-width: 1.5px; border-right-width: 1.5px; }
+.at-solid__c.c2 { left: 6px; bottom: 6px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.at-solid__c.c3 { right: 6px; bottom: 6px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.at-solid__en { font-weight: 600; }
+.at-solid__go {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: max(12px, calc(13 * var(--u)));
+  letter-spacing: 0.04em;
+}
+.at-solid__zh { opacity: 0.8; transition: opacity 0.3s ease; }
+.at-solid__arrow {
+  display: inline-block;
+  transition: transform 0.45s var(--solid-spring);
+}
+
+.at-solid:is(:hover, :focus-visible) {
+  color: var(--text) !important;
+  border-color: color-mix(in srgb, var(--solid-c) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent),
+    0 14px 30px -16px color-mix(in srgb, var(--solid-c) 75%, transparent);
+}
+.at-solid:is(:hover, :focus-visible) .at-solid__arrow,
+.at-solid:is(:hover, :focus-visible) .at-solid__c { color: var(--accent-deep); }
+.at-solid:is(:hover, :focus-visible)::before { transform: scaleX(1); }
+.at-solid:is(:hover, :focus-visible)::after { opacity: 1; }
+.at-solid:is(:hover, :focus-visible) .at-solid__bar { opacity: 0; transition-delay: 0s; }
+.at-solid:is(:hover, :focus-visible) .at-solid__sheen { animation: at-solid-sheen 0.9s var(--solid-ease) 0.12s both; }
+.at-solid:is(:hover, :focus-visible) .at-solid__zh { opacity: 1; }
+.at-solid:is(:hover, :focus-visible) .at-solid__arrow { transform: translateX(6px); }
+.at-solid:is(:hover, :focus-visible) .at-solid__c { opacity: 0.9; }
+.at-solid:is(:hover, :focus-visible) .at-solid__c.c0 { transform: translate(-3px, -3px); }
+.at-solid:is(:hover, :focus-visible) .at-solid__c.c1 { transform: translate(3px, -3px); }
+.at-solid:is(:hover, :focus-visible) .at-solid__c.c2 { transform: translate(-3px, 3px); }
+.at-solid:is(:hover, :focus-visible) .at-solid__c.c3 { transform: translate(3px, 3px); }
+.at-solid:active { transform: scale(0.985); transition-duration: 0.12s; }
+.at-solid:active .at-solid__c.c0 { transform: translate(3px, 3px); }
+.at-solid:active .at-solid__c.c1 { transform: translate(-3px, 3px); }
+.at-solid:active .at-solid__c.c2 { transform: translate(3px, -3px); }
+.at-solid:active .at-solid__c.c3 { transform: translate(-3px, -3px); }
+/* 暗色主题：分类色本身更亮，铺满时压深一些保证白字对比度；顶部高光减弱 */
+html[data-theme="dark"] .at-solid {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 16%, transparent),
+    0 8px 22px -14px color-mix(in srgb, var(--solid-c) 50%, transparent);
+}
+html[data-theme="dark"] .at-solid:is(:hover, :focus-visible),
+html[data-theme="dark"] .at-solid:is(:hover, :focus-visible) .at-solid__arrow,
+html[data-theme="dark"] .at-solid:is(:hover, :focus-visible) .at-solid__c { color: #f4fbfe !important; }
+html[data-theme="dark"] .at-solid::before {
+  background: linear-gradient(100deg,
+    color-mix(in srgb, var(--solid-c) 48%, #08161f) 0%,
+    color-mix(in srgb, var(--solid-c) 70%, #08161f) 100%);
+}
+@keyframes at-solid-sheen {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(110%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .at-solid, .at-solid::before, .at-solid::after, .at-solid *, .at-solid *::before { transition: none !important; animation: none !important; }
+}
 .at-ghost { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 46px; font-size: max(11px, calc(12 * var(--u))) !important; letter-spacing: 0.1em; }
 .at-ghost span { font-size: 1.6em; }
 .at-ghost:hover { color: var(--accent); }
 .at-footnote { display: flex; justify-content: space-between; margin-top: 18px; font-size: 9px; letter-spacing: 0.1em; color: var(--text-faint); }
 
-/* 正文揭示（document-decryption.ts 生成的遮挡条） */
-.document-redacted { position: relative; }
-.document-redaction-window { position: absolute; display: block; overflow: hidden; pointer-events: none; z-index: 1; }
-.document-redaction-ink { position: absolute; inset: 0; display: block; background: var(--text); will-change: transform; }
-.archive-terminal.is-reduced .document-redaction-window { display: none; }
-
 /* ---------- 页脚 / 载入 ---------- */
-.at-footer { position: absolute; left: var(--edge); right: var(--edge); bottom: calc(28 * var(--u)); z-index: 3; display: flex; justify-content: space-between; font-size: max(9px, calc(10 * var(--u))); letter-spacing: 0.12em; color: var(--text-faint); pointer-events: none; }
+.at-footer { position: absolute; left: var(--edge); right: var(--edge); bottom: calc(28 * var(--u)); z-index: 3; display: flex; justify-content: space-between; font-size: max(9px, calc(10 * var(--u))); letter-spacing: 0.12em; color: var(--text-dim); text-shadow: 0 1px 2px color-mix(in srgb, var(--bg) 85%, transparent); pointer-events: none; }
 .at-footer i { display: inline-block; width: 5px; height: 5px; margin-right: 8px; vertical-align: middle; background: var(--at-cat); }
 
 .at-loading { position: absolute; inset: 0; z-index: 6; display: grid; place-content: center; justify-items: center; gap: 16px; background: var(--bg); font-size: 12px; letter-spacing: 0.16em; color: var(--text-dim); transition: opacity 0.6s ease, visibility 0.6s; }

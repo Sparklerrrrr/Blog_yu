@@ -46,7 +46,8 @@ export function resizeQuality(
     host.getBoundingClientRect().width / width,
     devicePixelRatio,
     renderer.capabilities.maxTextureSize,
-    superPerformance ? 921_600 : 8_294_400,
+    // 约 6MP：笔记本 1160×820@2× ≈ 3.8MP 可以满分辨率；1080p@2× 这类大屏收在 ≈1.7×。
+    superPerformance ? 921_600 : 6_000_000,
   );
   renderer.setPixelRatio(dimensions.ratio);
   renderer.setSize(width, height);

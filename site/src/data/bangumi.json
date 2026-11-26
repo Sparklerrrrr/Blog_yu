@@ -1,27 +1,6 @@
 {
   "watching": [
     {
-      "title": "JOJO的奇妙冒险 星尘远征军 埃及篇",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/image/f6709b76e88f50aa132d1e09e2d8de9663a09b3e.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss4213",
-      "progress": "全24话",
-      "badge": "独家"
-    },
-    {
-      "title": "三体",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/image/9870f898b8a39bbb8048f34317f8d78a02cc1770.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss26257",
-      "progress": "全15话",
-      "badge": "出品"
-    },
-    {
-      "title": "明日方舟：焰烬曙明 中配版",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/image/88609970c53ca8a861d57f949b6897bfa27d657e.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss102041",
-      "progress": "全10话",
-      "badge": "独家"
-    },
-    {
       "title": "明日方舟：焰烬曙明",
       "cover": "https://i0.hdslb.com/bfs/bangumi/image/88609970c53ca8a861d57f949b6897bfa27d657e.png",
       "url": "https://www.bilibili.com/bangumi/play/ss102042",
@@ -29,11 +8,31 @@
       "badge": "独家"
     },
     {
+      "title": "灵笼:落子无悔",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/f2a00a099ca8313ac4d1af89165fd5e86dc05ec5.jpg",
+      "url": "https://www.bilibili.com/bangumi/play/ss358611",
+      "progress": "即将开播",
+      "badge": "出品"
+    },
+    {
       "title": "灵笼 第二季",
       "cover": "https://i0.hdslb.com/bfs/bangumi/image/08bf0c1e24e454de51b58d1e26c0a9aecbe9b0c1.png",
       "url": "https://www.bilibili.com/bangumi/play/ss46585",
       "progress": "全12话",
       "badge": "出品"
+    },
+    {
+      "title": "那年那兔那些事儿长征篇",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/4b9436b43001b9476d5decc3a858e87bbf860954.jpg",
+      "url": "https://www.bilibili.com/bangumi/play/ss342056",
+      "progress": "全12话"
+    },
+    {
+      "title": "明日方舟：焰烬曙明 中配版",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/88609970c53ca8a861d57f949b6897bfa27d657e.png",
+      "url": "https://www.bilibili.com/bangumi/play/ss102041",
+      "progress": "全10话",
+      "badge": "独家"
     },
     {
       "title": "那年那兔那些事儿 第七季",
@@ -59,6 +58,13 @@
       "url": "https://www.bilibili.com/bangumi/play/ss43057",
       "progress": "全8话",
       "badge": "独家"
+    },
+    {
+      "title": "三体",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/9870f898b8a39bbb8048f34317f8d78a02cc1770.png",
+      "url": "https://www.bilibili.com/bangumi/play/ss26257",
+      "progress": "全15话",
+      "badge": "出品"
     },
     {
       "title": "辉夜大小姐想让我告白 剧场版",
@@ -191,13 +197,6 @@
       "title": "JOJO的奇妙冒险 黄金之风",
       "cover": "https://i0.hdslb.com/bfs/bangumi/f34ff3975c39913af936c133ae60a5891babba08.png",
       "url": "https://www.bilibili.com/bangumi/play/ss25681",
-      "progress": "全39话",
-      "badge": "独家"
-    },
-    {
-      "title": "JOJO的奇妙冒险 不灭钻石",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/6a04c87e990ab74cd8d555ef45a863de0993b161.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss5398",
       "progress": "全39话",
       "badge": "独家"
     }
@@ -205,27 +204,6 @@
   "want": [],
   "watched": [
     {
-      "title": "JOJO的奇妙冒险 星尘远征军 埃及篇",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/image/f6709b76e88f50aa132d1e09e2d8de9663a09b3e.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss4213",
-      "progress": "全24话",
-      "badge": "独家"
-    },
-    {
-      "title": "三体",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/image/9870f898b8a39bbb8048f34317f8d78a02cc1770.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss26257",
-      "progress": "全15话",
-      "badge": "出品"
-    },
-    {
-      "title": "明日方舟：焰烬曙明 中配版",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/image/88609970c53ca8a861d57f949b6897bfa27d657e.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss102041",
-      "progress": "全10话",
-      "badge": "独家"
-    },
-    {
       "title": "明日方舟：焰烬曙明",
       "cover": "https://i0.hdslb.com/bfs/bangumi/image/88609970c53ca8a861d57f949b6897bfa27d657e.png",
       "url": "https://www.bilibili.com/bangumi/play/ss102042",
@@ -233,11 +211,31 @@
       "badge": "独家"
     },
     {
+      "title": "灵笼:落子无悔",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/f2a00a099ca8313ac4d1af89165fd5e86dc05ec5.jpg",
+      "url": "https://www.bilibili.com/bangumi/play/ss358611",
+      "progress": "即将开播",
+      "badge": "出品"
+    },
+    {
       "title": "灵笼 第二季",
       "cover": "https://i0.hdslb.com/bfs/bangumi/image/08bf0c1e24e454de51b58d1e26c0a9aecbe9b0c1.png",
       "url": "https://www.bilibili.com/bangumi/play/ss46585",
       "progress": "全12话",
       "badge": "出品"
+    },
+    {
+      "title": "那年那兔那些事儿长征篇",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/4b9436b43001b9476d5decc3a858e87bbf860954.jpg",
+      "url": "https://www.bilibili.com/bangumi/play/ss342056",
+      "progress": "全12话"
+    },
+    {
+      "title": "明日方舟：焰烬曙明 中配版",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/88609970c53ca8a861d57f949b6897bfa27d657e.png",
+      "url": "https://www.bilibili.com/bangumi/play/ss102041",
+      "progress": "全10话",
+      "badge": "独家"
     },
     {
       "title": "那年那兔那些事儿 第七季",
@@ -263,6 +261,13 @@
       "url": "https://www.bilibili.com/bangumi/play/ss43057",
       "progress": "全8话",
       "badge": "独家"
+    },
+    {
+      "title": "三体",
+      "cover": "https://i0.hdslb.com/bfs/bangumi/image/9870f898b8a39bbb8048f34317f8d78a02cc1770.png",
+      "url": "https://www.bilibili.com/bangumi/play/ss26257",
+      "progress": "全15话",
+      "badge": "出品"
     },
     {
       "title": "辉夜大小姐想让我告白 剧场版",
@@ -397,14 +402,7 @@
       "url": "https://www.bilibili.com/bangumi/play/ss25681",
       "progress": "全39话",
       "badge": "独家"
-    },
-    {
-      "title": "JOJO的奇妙冒险 不灭钻石",
-      "cover": "https://i0.hdslb.com/bfs/bangumi/6a04c87e990ab74cd8d555ef45a863de0993b161.png",
-      "url": "https://www.bilibili.com/bangumi/play/ss5398",
-      "progress": "全39话",
-      "badge": "独家"
     }
   ],
-  "updatedAt": "2026-09-22T11:05:22.442Z"
+  "updatedAt": "2026-11-26T07:30:59.805Z"
 }

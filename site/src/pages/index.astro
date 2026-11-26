@@ -65,7 +65,7 @@ for (let m = 0; m < 12; m++) {
 }
 
 const accountLinks = [
-  { name: 'Gitee', url: 'https://gitee.com/yu_sparklerrr' },
+  { name: 'Gitee', url: 'https://gitee.com/Sparklerrrrr' },
   { name: 'GitHub', url: 'https://github.com/Sparklerrrrr' },
   { name: 'Bilibili', url: 'https://space.bilibili.com/421381039' },
 ];
@@ -297,7 +297,7 @@ const accountLinks = [
         <p>
           站点基于 Astro 构建、由 Gitee 托管源码；相册收藏了 16 张壁纸，
           追番列表会在构建时自动与 B 站同步。如果你也喜欢这个风格，
-          欢迎到 <a href="https://gitee.com/yu_sparklerrr/blog_yu" target="_blank" rel="noopener">仓库</a> 逛逛或交换友链。
+          欢迎到 <a href="https://gitee.com/Sparklerrrrr/blog_yu" target="_blank" rel="noopener">仓库</a> 逛逛或交换友链。
         </p>
       </div>
       <p style="margin-top: var(--sp-5);">
@@ -321,9 +321,13 @@ const accountLinks = [
         posts.classList.remove('push-anim');
         void posts.offsetWidth; // 强制 reflow，重放动画
         posts.classList.add('push-anim');
+        // 先钉成「已入场」再移除 push-anim：否则 animation 会退回到显现动画（reveal-left）再播一遍
         posts.addEventListener(
           'animationend',
-          () => posts.classList.remove('push-anim'),
+          () => {
+            posts.classList.add('reveal-instant');
+            posts.classList.remove('push-anim');
+          },
           { once: true }
         );
       }

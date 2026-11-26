@@ -1,51 +1,8 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import EmptyState from '../components/EmptyState.astro';
-import { CATEGORIES, formatDate, groupByYear, getPosts, readingTime } from '../lib/site';
-
-const posts = await getPosts();
-const years = groupByYear(posts);
+import ArchiveTerminal from '../components/ArchiveTerminal.astro';
 ---
 
-<BaseLayout title="归档">
-  <section class="container">
-    <div class="panel reveal-x">
-      <header class="page-head">
-        <p class="micro-label">ARCHIVE // 归档</p>
-        <h1 class="display-title">归档</h1>
-        <p class="micro-label" style="margin-top: var(--sp-3);">TOTAL // {posts.length} POSTS</p>
-      </header>
-
-      {
-        posts.length === 0 ? (
-          <EmptyState />
-        ) : (
-          years.map(({ year, posts: list }) => (
-            <section class="archive-year">
-              <h2 class="archive-year-label">
-                <span class="archive-year-num">{year}</span>
-                <span class="archive-year-count">// {list.length} POSTS</span>
-              </h2>
-              <ol class="archive-timeline">
-                {list.map((p) => (
-                  <li class="archive-item reveal">
-                    <time class="archive-date" datetime={p.data.date.toISOString()}>{formatDate(p.data.date)}</time>
-                    <a class="archive-title" href={`/posts/${p.id}/`}>
-                      {p.data.pin && <span class="pin-chip">PIN</span>}
-                      {p.data.title}
-                    </a>
-                    <span class="archive-meta">
-                      <span class="cat-dot" style={`background:${CATEGORIES[p.data.category].color}`} />
-                      {CATEGORIES[p.data.category].en}
-                      <span class="num">// {readingTime(p.body)} MIN</span>
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ))
-        )
-      }
-    </div>
-  </section>
+<BaseLayout title="归档" bodyClass="archive-page">
+  <ArchiveTerminal label="归档" listHref="/posts/" fullscreen />
 </BaseLayout>

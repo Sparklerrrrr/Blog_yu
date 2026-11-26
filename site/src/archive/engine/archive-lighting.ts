@@ -17,29 +17,35 @@ export function createArchiveLighting(
   look: LightingLook = "baseline",
 ) {
   const refined = look === "refined";
-  renderer.toneMappingExposure = refined ? 1.0 : 1.05;
+  renderer.toneMappingExposure = refined ? 0.9 : 0.92;
   const pmrem = new THREE.PMREMGenerator(renderer);
   const room = new RoomEnvironment();
   scene.environment = pmrem.fromScene(room, 0.04).texture;
   room.dispose();
   pmrem.dispose();
-  scene.environmentIntensity = refined ? 0.52 : 0.48;
+  // 环境贴图提供玻璃反射，但压低漫反射环境光，让主光塑造体积。
+  scene.environmentIntensity = refined ? 0.95 : 0.9;
   scene.add(
     new THREE.HemisphereLight(
       PALETTE.light.sky,
       PALETTE.light.ground,
-      refined ? 0.5 : 0.65,
+      refined ? 0.24 : 0.26,
     ),
   );
+  // 主光放在镜头同侧前上方：照亮朝向观者的玻璃面，阴影落在后方。
   const key = new THREE.DirectionalLight(
     PALETTE.light.key,
-    refined ? 1.7 : 1.4,
+    refined ? 2.15 : 2.0,
   );
   key.position.set(
-    ...((refined ? [-8, 14, 4] : [-6, 14, -5]) as [number, number, number]),
+    ...((refined ? [-8, 15, 6] : [-7, 15, 7]) as [number, number, number]),
   );
-  const fill = new THREE.DirectionalLight(PALETTE.light.fill, refined ? 0.3 : 0.6);
-  fill.position.set(7, 8, -10);
-  scene.add(key, fill);
+  // 背侧补光勾出档案盒轮廓，避免阵列边缘和背景糊在一起。
+  const fill = new THREE.DirectionalLight(PALETTE.light.fill, refined ? 0.26 : 0.3);
+  fill.position.set(8, 7, -9);
+  // 冰蓝轮廓光：只打亮玻璃边缘和高光，不参与阴影。
+  const rim = new THREE.DirectionalLight(PALETTE.light.rim, refined ? 0.66 : 0.8);
+  rim.position.set(12, 4, 10);
+  scene.add(key, fill, rim);
   return key;
 }

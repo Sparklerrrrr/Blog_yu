@@ -30,29 +30,29 @@ export const qualityPresets = {
     shadows: 2048,
     aoSamples: 32,
     aoResolution: 1,
-    depthOfField: 100,
+    depthOfField: 0,
     transmission: 1,
     anisotropy: 16,
   },
   high: {
     scale: 125,
-    pixelRatio: 2,
+    pixelRatio: 1.5,
     antialias: "smaa",
     shadows: 4096,
     aoSamples: 32,
     aoResolution: 1,
-    depthOfField: 100,
+    depthOfField: 0,
     transmission: 1,
     anisotropy: 16,
   },
   ultra: {
     scale: 150,
-    pixelRatio: 2,
+    pixelRatio: 1.5,
     antialias: "smaa",
     shadows: 4096,
     aoSamples: 64,
     aoResolution: 1,
-    depthOfField: 100,
+    depthOfField: 0,
     transmission: 1,
     anisotropy: 16,
   },
@@ -133,8 +133,10 @@ export function renderDimensions(
   maxTextureSize: number,
   pixelBudget = 8_294_400,
 ) {
+  // 硬性上限 2×：1.5× 在 2× 屏上会被浏览器再放大 1.33 倍显示，玻璃边缘和标签发软。
+  // 总像素仍受下面的 pixelBudget 约束，帧率不够时由终端自动降到 ECO / LITE。
   const requested =
-    (Math.min(deviceRatio, quality.pixelRatio) * stageScale * quality.scale) /
+    (Math.min(deviceRatio, quality.pixelRatio, 2) * stageScale * quality.scale) /
     100;
   // Bound all full-resolution postprocessing targets to 8.3 MP and device limits.
   const ratio = Math.min(

@@ -38,7 +38,9 @@ const { pageKey, pageTitle } = Astro.props;
   ></div>
 </section>
 
-<script is:inline>
+<script is:inline data-astro-rerun>
+  // data-astro-rerun：ClientRouter 默认不重跑已执行过的脚本，第二次进入带评论的页面时 mount() 不会执行，
+  // 评论区空白。加上它后每次导航到带评论的页面都会重跑这段脚本（Artalk 前端只加载一次，见 ensureAssets）。
   (function () {
     // 挂载：销毁旧实例（ClientRouter 切换后旧 DOM 已移除），在新容器上重建
     function mount() {
@@ -86,6 +88,31 @@ const { pageKey, pageTitle } = Astro.props;
       } catch (e) {
         /* 忽略 */
       }
+    }
+
+    // 换页时（只绑定一次）：
+    // 1) 动态插进 <head> 的 Artalk.css 不在新页面的 head 里，ClientRouter 会把它删掉，
+    //    再回到评论页时评论区就没有样式。这里把它复制进新文档的 head，让它一直保留（只加载一次，后续命中缓存）。
+    // 2) 销毁旧的评论实例（旧 DOM 已被替换，实例和它的轮询/监听不该继续存活）。
+    //    before-swap 发生在旧页截图之后，销毁不会出现在过渡画面里。
+    if (!window.__artalkSwapBound) {
+      window.__artalkSwapBound = true;
+      document.addEventListener('astro:before-swap', function (e) {
+        var css = document.getElementById('artalk-css');
+        var next = e.newDocument;
+        if (css && next && !next.getElementById('artalk-css')) {
+          next.head.appendChild(css.cloneNode(true));
+        }
+        var inst = window.__artalkInst;
+        if (inst && typeof inst.destroy === 'function') {
+          try {
+            inst.destroy();
+          } catch (err) {
+            /* 忽略 */
+          }
+        }
+        window.__artalkInst = null;
+      });
     }
 
     // 开发环境服务器地址：跟随当前访问主机（127.0.0.1 / localhost / 局域网 IP 均可）

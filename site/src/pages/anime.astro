@@ -33,6 +33,21 @@ function normalizeCover(cover: unknown): string {
   return url || FALLBACK_COVER;
 }
 
+/**
+ * 卡片用缩略图：B 站图床（*.hdslb.com）支持「@宽w_高h.webp」后缀按需缩放。
+ * 原图是 960×1280 的 PNG（约 1.9MB/张，整页 60 张上百 MB），卡片只有约 152×203，
+ * 320 宽的 WebP（约 40KB）在 2× 屏上也足够清晰。旧缓存里的地址也在这里统一处理。
+ */
+function coverThumb(cover: string): string {
+  try {
+    const u = new URL(cover);
+    if (!/(^|\.)hdslb\.com$/.test(u.hostname) || u.pathname.includes('@')) return cover;
+    return cover + '@320w_427h.webp';
+  } catch {
+    return cover; // data: 兜底图等
+  }
+}
+
 /** 进度文案：纯数字 → 「看到第 N 话」，其余（如「全12话」）原样显示 */
 function formatProgress(raw: string): string {
   if (/^\d+$/.test(raw)) return '看到第 ' + raw + ' 话';
@@ -88,6 +103,23 @@ async function loadBangumi() {
       writeFileSync(CACHE_FILE, JSON.stringify(result, null, 2));
     } catch { /* 忽略 */ }
   };
+
+  // 开发服务器每次请求都会执行这里：缓存 30 分钟内直接用，不必每次刷新都等 B 站接口 + 两次 800ms 间隔。
+  // 生产构建（只跑一次）始终实时同步。
+  const DEV_CACHE_MS = 30 * 60 * 1000;
+  if (
+    import.meta.env.DEV &&
+    cached?.updatedAt &&
+    Date.now() - new Date(cached.updatedAt).getTime() < DEV_CACHE_MS &&
+    (cached.watching?.length || cached.want?.length || cached.watched?.length)
+  ) {
+    return {
+      watching: cached.watching ?? [],
+      want: cached.want ?? [],
+      watched: cached.watched ?? [],
+      updatedAt: cached.updatedAt,
+    };
+  }
 
   const watching = await fetchBangumi(0);
   if (watching.length > 0) {
@@ -169,7 +201,16 @@ const total = watching.length + want.length + watched.length;
                   {g.list.map((item) => (
                     <a class="bangumi-card reveal" href={item.url} target="_blank" rel="noopener noreferrer">
                       <div class="bangumi-cover">
-                        <img src={item.cover} alt={item.title} loading="lazy" />
+                        {/* no-referrer：B 站图床有防盗链，带本站 Referer 请求会被拒，封面全部加载失败 */}
+                        <img
+                          src={coverThumb(item.cover)}
+                          alt={item.title}
+                          loading="lazy"
+                          decoding="async"
+                          referrerpolicy="no-referrer"
+                          width="320"
+                          height="427"
+                        />
                         {item.badge && <span class="bangumi-badge">{item.badge}</span>}
                       </div>
                       <div class="bangumi-meta">

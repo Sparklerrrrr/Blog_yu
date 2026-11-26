@@ -141,7 +141,15 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  /* 有无纵向滚动条的页面之间切换时，内容不再左右跳 10px */
+  scrollbar-gutter: stable;
+}
+/* 全屏三维归档页本身不滚动，不需要预留滚动条槽 */
+html:has(body.archive-page) { scrollbar-gutter: auto; }
+/* 未揭示的 .reveal-x 带 72px 横向偏移，不能把页面撑出横向滚动条（clip 不建滚动容器，sticky 目录照常） */
+main { overflow-x: clip; }
 
 /* 锚点跳转时为固定顶栏留出偏移 */
 [id] { scroll-margin-top: 80px; }
@@ -226,21 +234,22 @@ h1, h2, h3, h4 {
 
 /* ---------- 动效套件 v2（借鉴 blog.myqfeng.top：入场/波浪/按压/切换，克制版） ---------- */
 
-/* 滚动显现：IntersectionObserver 加 .is-in（仅 JS 可用时隐藏初始态） */
-.reveal {
-  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), translate 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: var(--reveal-delay, 0ms);
-}
+/* 滚动显现：IntersectionObserver 加 .is-in（仅 JS 可用时隐藏初始态）
+   用 animation 而不是 transition：.panel / 各种卡片自己声明了 transition（hover 阴影等），
+   同优先级、位置更靠后，会把显现用的 transition 整个覆盖掉，结果是「啪」地跳出来。
+   animation 与 transition 互不覆盖。 */
 .js .reveal { opacity: 0; translate: 0 16px; }
-.js .reveal.is-in { opacity: 1; translate: 0 0; }
-
-/* 板块横向滑入（借鉴 ak.hypergryph.com 的横向切换过渡） */
-.reveal-x {
-  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), translate 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: var(--reveal-delay, 0ms);
-}
 .js .reveal-x { opacity: 0; translate: 72px 0; }
+.js .reveal.is-in,
 .js .reveal-x.is-in { opacity: 1; translate: 0 0; }
+.js .reveal.is-in { animation: reveal-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms) both; }
+/* 板块横向滑入（借鉴 ak.hypergryph.com 的横向切换过渡） */
+.js .reveal-x.is-in { animation: reveal-left 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms) both; }
+/* 页面切换时已在首屏内的块：由页面切换动画负责入场，自身不再重复播放（app.ts 在 after-swap 标记） */
+.js .reveal.reveal-instant,
+.js .reveal-x.reveal-instant { animation: none; }
+@keyframes reveal-up { from { opacity: 0; translate: 0 16px; } }
+@keyframes reveal-left { from { opacity: 0; translate: 72px 0; } }
 
 /* Hero 标题字母级入场（Hero 组件把字母拆成 span） */
 .hero .title .ch {
@@ -316,23 +325,84 @@ h1, h2, h3, h4 {
 .dropdown-item { transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease); }
 .dropdown-item:hover { transform: translateX(3px); }
 
-/* 页面切换（Astro ClientRouter 的 view transition） */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 0.35s;
+/* ==========================================================================
+   页面切换（View Transitions）
+   - 不带作用域的 root 规则：只给明暗主题切换（app.ts 自己调用 startViewTransition）用，整页淡入淡出。
+   - 普通页面导航：Astro 在导航期间给 <html> 加 data-astro-transition="forward|back"，
+     下面所有导航规则都挂在它上面，并排除 READ FULL TEXT（html.read-nav，见 read-hud.css）。
+   - 顶栏 / 进度条 / 顶部高光 / 提示层导航期间单独成层、保持不动；只有 root（正文 + 页脚）滑动淡入。
+     不给 <main> 单独命名：Astro 在过渡中途滚动页面，长页面的 main 会从几千像素外滑进来。
+   - 只动 opacity / transform，走合成线程。
+   ========================================================================== */
+::view-transition-old(root) { animation: vt-theme-out 0.3s ease both; }
+::view-transition-new(root) { animation: vt-theme-in 0.3s ease both; }
+@keyframes vt-theme-out { to { opacity: 0; } }
+@keyframes vt-theme-in { from { opacity: 0; } }
+
+/* 导航期间：程序化滚动（回到顶部 / 后退恢复位置）立即完成，不要平滑滚动；页内锚点不受影响 */
+html[data-astro-transition] { scroll-behavior: auto; }
+/* 新旧两层交叉淡入时，底下垫页面底色（暗色主题不会闪白） */
+html[data-astro-transition]:not(.read-nav)::view-transition { background: var(--bg); }
+
+/* 静止层：只在导航期间命名（常驻命名会让 .site-nav 成为 backdrop root，下拉/搜索的毛玻璃失效） */
+html[data-astro-transition]:not(.read-nav) #site-nav { view-transition-name: site-nav; }
+html[data-astro-transition]:not(.read-nav) #progress-bar { view-transition-name: progress-bar; }
+html[data-astro-transition]:not(.read-nav) .top-glow { view-transition-name: top-glow; }
+html[data-astro-transition]:not(.read-nav) #toast-host { view-transition-name: toast-host; }
+/* 单独成层后顶栏背后没有可模糊的内容：导航期间用接近实色的底代替毛玻璃 */
+html[data-astro-transition]:not(.read-nav) .site-nav.is-scrolled { background: color-mix(in srgb, var(--bg) 86%, transparent); }
+/* 顶栏 / 高光 / 提示：直接显示新的一层，不做位置/尺寸补间，也不交叉淡入（避免两层透明顶栏叠影） */
+html[data-astro-transition]:not(.read-nav)::view-transition-group(site-nav),
+html[data-astro-transition]:not(.read-nav)::view-transition-new(site-nav),
+html[data-astro-transition]:not(.read-nav)::view-transition-group(top-glow),
+html[data-astro-transition]:not(.read-nav)::view-transition-new(top-glow),
+html[data-astro-transition]:not(.read-nav)::view-transition-group(toast-host),
+html[data-astro-transition]:not(.read-nav)::view-transition-new(toast-host) { animation: none; }
+html[data-astro-transition]:not(.read-nav)::view-transition-old(top-glow),
+html[data-astro-transition]:not(.read-nav)::view-transition-old(toast-host) { display: none; }
+/* 旧顶栏不直接隐藏，而是跟旧页同节奏淡出：滚动过的页面离开时，旧顶栏的实色底能盖住它下面正在淡出的旧内容；
+   各页顶栏结构相同，新旧重叠几乎看不出叠影 */
+html[data-astro-transition]:not(.read-nav)::view-transition-old(site-nav) {
+  animation: vt-theme-out 0.18s cubic-bezier(0.4, 0, 1, 1) both;
 }
-::view-transition-old(root) {
-  animation: vt-fade-out 0.25s ease both;
+/* 顶部高光只在一侧存在（进出归档页时归档页隐藏了它）：淡入/淡出，而不是突然出现/消失 */
+html[data-astro-transition]:not(.read-nav)::view-transition-new(top-glow):only-child { animation: vt-theme-in 0.3s ease both; }
+html[data-astro-transition]:not(.read-nav)::view-transition-old(top-glow):only-child { display: block; animation: vt-theme-out 0.18s ease both; }
+/* 进度条：宽度从旧页进度平滑收/展到新页进度 */
+html[data-astro-transition]:not(.read-nav)::view-transition-group(progress-bar) {
+  animation-duration: 0.45s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
-::view-transition-new(root) {
-  animation: vt-fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+/* 内容层：前进 = 旧页上移淡出、新页自下而上浮现；后退 = 方向相反。
+   先出后进：旧页 180ms 内退干净，新页 120ms 后才开始浮现，两层几乎不重叠，避免两页文字叠影；
+   中间露出的是 ::view-transition 上垫的页面底色。 */
+html[data-astro-transition="forward"]:not(.read-nav)::view-transition-old(root) {
+  animation: vt-out-up 0.18s cubic-bezier(0.4, 0, 1, 1) both;
 }
-@keyframes vt-fade-out {
-  to { opacity: 0; transform: translateY(-6px); }
+html[data-astro-transition="forward"]:not(.read-nav)::view-transition-new(root) {
+  animation: vt-in-up 0.46s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
 }
-@keyframes vt-fade-in-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
+html[data-astro-transition="back"]:not(.read-nav)::view-transition-old(root) {
+  animation: vt-out-down 0.18s cubic-bezier(0.4, 0, 1, 1) both;
+}
+html[data-astro-transition="back"]:not(.read-nav)::view-transition-new(root) {
+  animation: vt-in-down 0.46s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+}
+@keyframes vt-out-up { to { opacity: 0; transform: translateY(-12px); } }
+@keyframes vt-in-up { from { opacity: 0; transform: translateY(24px); } }
+@keyframes vt-out-down { to { opacity: 0; transform: translateY(12px); } }
+@keyframes vt-in-down { from { opacity: 0; transform: translateY(-24px); } }
+
+/* 不支持 View Transitions 的浏览器：Astro 的 fallback="animate" 会等这些动画跑完再换页 */
+html[data-astro-transition-fallback="old"]:not(.read-nav) main { animation: vt-out-up 0.2s cubic-bezier(0.4, 0, 1, 1) both; }
+html[data-astro-transition-fallback="new"]:not(.read-nav) main { animation: vt-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none !important; }
+  html[data-astro-transition-fallback] main { animation: none !important; }
 }
 
 /* ==========================================================================

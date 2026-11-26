@@ -24,6 +24,7 @@ export class InspectionOverlay {
   private line: SVGPathElement;
   private corners: SVGGElement;
   private point: SVGCircleElement;
+  private hidden = false;
 
   /**
    * @param root  覆盖在三维画布上的 SVG，内含 [data-inspection="lines|corners|point"]
@@ -43,11 +44,18 @@ export class InspectionOverlay {
     project: (x: number, y: number) => number[],
     enabled = true,
   ) {
+    // 归档浏览态没有扫描线：直接跳过每帧的 DOM 写入与尺寸读取。
+    const active = enabled && (frame.intervals.length > 0 || frame.markers > 0 || frame.point > 0);
+    if (!active) {
+      if (!this.hidden) {
+        this.hidden = true;
+        this.root.style.opacity = "0";
+      }
+      return;
+    }
+    this.hidden = false;
     this.root.setAttribute("viewBox", `0 0 ${this.host.clientWidth} ${this.host.clientHeight}`);
-    this.root.style.opacity =
-      enabled && (frame.intervals.length || frame.markers > 0 || frame.point > 0)
-        ? "1"
-        : "0";
+    this.root.style.opacity = "1";
     this.root.dataset.phase = frame.phase;
     this.line.setAttribute(
       "d",

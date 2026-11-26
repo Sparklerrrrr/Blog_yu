@@ -1,13 +1,22 @@
 ---
 /**
- * 文章档案终端：/posts/ 顶部的三维档案阵列（引擎移植自 RhineLabUI，见 src/archive/NOTICE.md）。
+ * 文章档案终端：归档页顶部的三维档案阵列（引擎移植自 RhineLabUI，见 src/archive/NOTICE.md）。
  * 窄屏 / 不支持 WebGL2 / 禁用 JS 时整块隐藏，页面照常显示下方的列表视图。
  */
 import { render } from 'astro:content';
 import { CATEGORIES, formatDate, getPosts, readingTime, type Post } from '../lib/site';
 import type { ArchiveRecord } from '../archive/engine/data';
 import '../archive/terminal.css';
+// 朦胧揭示的样式（含 @property --rv-p）必须作为页面样式声明在这里：
+// 若只在动态 import 的 terminal.ts 里引入，ClientRouter 换页时会被当作「新页没有的样式」移除，
+// 回到归档页时模块已缓存不会重新注入，--rv-p 退化成不可插值的普通变量，揭示动画直接跳变消失。
+import '../archive/motion/haze-reveal.css';
 
+const { label = '文章', listHref = '', fullscreen = false } = Astro.props as {
+  label?: string;
+  listHref?: string;
+  fullscreen?: boolean;
+};
 const posts = await getPosts();
 
 // 编号按发布时间从旧到新：新文章永远排在后面，旧文章的编号不会变
@@ -75,11 +84,12 @@ const json = JSON.stringify({ records, columns }).replace(/</g, '\\u003c');
 {
   posts.length > 0 && (
     <section
-      class="archive-terminal"
+      class:list={['archive-terminal', { 'is-fullscreen': fullscreen }]}
       data-state="loading"
       data-model="/models/archive-cassette.glb"
+      data-list-href={listHref || undefined}
       tabindex="0"
-      aria-label="三维文章档案终端"
+      aria-label={`三维${label}档案终端`}
       aria-describedby="at-help"
     >
       <script type="application/json" data-archive-data set:html={json} />
@@ -95,10 +105,10 @@ const json = JSON.stringify({ records, columns }).replace(/</g, '\\u003c');
         <header class="at-brand" aria-hidden="true">
           <h2>BLOG_YU</h2>
           <div>ARTICLE ARCHIVE</div>
-          <p>TERMINAL <b>// 文章</b></p>
+          <p>TERMINAL <b>// {label}</b></p>
         </header>
         <nav class="at-sysnav" aria-label="终端操作">
-          <button type="button" data-action="list">列表视图 <span>↓</span></button>
+          <button type="button" data-action="list">{listHref ? '文章列表' : '列表视图'} <span>↓</span></button>
           <button type="button" class="at-quality" data-action="quality" title="切换三维画质（会记住你的选择）">画质 HQ</button>
         </nav>
 
@@ -151,7 +161,7 @@ const json = JSON.stringify({ records, columns }).replace(/</g, '\\u003c');
           <p class="at-error">
             三维档案没能载入（浏览器可能关闭了硬件加速）。
             <br />
-            <button type="button" data-action="list">改用列表视图 ↓</button>
+            <button type="button" data-action="list">{listHref ? '查看文章列表 ↓' : '改用列表视图 ↓'}</button>
           </p>
         </div>
       </div>
@@ -159,32 +169,97 @@ const json = JSON.stringify({ records, columns }).replace(/</g, '\\u003c');
   )
 }
 
+{
+  listHref && (
+    <div class="archive-fallback" hidden>
+      <p class="micro-label">ARCHIVE TERMINAL</p>
+      <p>当前浏览器无法运行三维档案终端（需要 WebGL2 与 JavaScript）。</p>
+      <a class="tag" href={listHref}>查看文章列表 →</a>
+    </div>
+  )
+}
+
 <script>
-  let dispose: (() => void) | undefined;
+  let dispose: ((deferDispose?: boolean) => void) | undefined;
+  const booting = new WeakSet<HTMLElement>();
+
+  // 离开页面前释放 WebGL 上下文；同时清掉挂载标记，允许 ClientRouter
+  // 复用节点或同 URL 导航后重新挂载。
+  // 导航代数：每次开始离开就 +1，等待中的 boot 醒来发现代数变了就放弃挂载（见 boot）。
+  let navGen = 0;
+  const teardown = () => {
+    navGen++;
+    const fn = dispose;
+    dispose = undefined;
+    // ClientRouter 换页时只停循环/监听，WebGL 资源在文章页空闲时释放。
+    fn?.(true);
+    const root = document.querySelector<HTMLElement>('.archive-terminal');
+    // 只清挂载标记，不改 data-state：teardown 发生在旧页截图之前，
+    // 切到 loading 会让三维画面淡出、载入遮罩淡入，被截进离开归档页的过渡画面里。
+    // 下次挂载时 boot 会自己把 state 设回 loading。
+    if (root) delete root.dataset.mounted;
+  };
+
+  /** Astro 在页面切换期间给 <html> 加 data-astro-transition，结束时移除。 */
+  const afterPageTransition = () =>
+    new Promise<void>((resolve) => {
+      const html = document.documentElement;
+      if (!html.hasAttribute('data-astro-transition')) return resolve();
+      const mo = new MutationObserver(() => {
+        if (html.hasAttribute('data-astro-transition')) return;
+        mo.disconnect();
+        resolve();
+      });
+      mo.observe(html, { attributes: true, attributeFilter: ['data-astro-transition'] });
+    });
 
   const boot = async () => {
     const root = document.querySelector<HTMLElement>('.archive-terminal');
-    if (!root || root.dataset.mounted) return;
+    if (!root || booting.has(root)) return;
+    // 只有存在有效画布才算已挂载；0×0 画布说明上次挂载时容器还不可见。
+    const canvas = root.querySelector<HTMLCanvasElement>('canvas');
+    const live = root.dataset.mounted === 'true' && !!canvas && canvas.width > 0 && canvas.height > 0;
+    if (live) return;
+    booting.add(root);
     root.dataset.mounted = 'true';
+    root.dataset.state = 'loading';
+    const fallback = document.querySelector<HTMLElement>('.archive-fallback');
+    const useFallback = () => {
+      root.dataset.state = 'off';
+      if (fallback) fallback.hidden = false;
+    };
+    const gen = navGen;
     try {
       // 三维部分单独分包：列表视图先渲染出来，不被 three.js 拖慢
       const { archiveTerminalSupported, mountArchiveTerminal } = await import('../archive/terminal');
-      if (!root.isConnected) return;
-      if (!archiveTerminalSupported()) {
-        root.dataset.state = 'off';
+      // 从别的页面切过来时，等页面切换动画结束再挂载三维：
+      // 模型解析 + 着色器预编译有几百毫秒的长任务，压在切换动画上会让滑入一卡一卡。
+      // 期间显示的是载入遮罩，过渡本身照常顺滑。
+      await afterPageTransition();
+      // 过渡还没结束用户就又点走了：这一页已经在离开，teardown 也已跑过，不能再挂载，
+      // 否则三维会挂在正在离开的页面上并一直活到下一次导航。
+      if (gen !== navGen || !root.isConnected) {
+        if (gen !== navGen) delete root.dataset.mounted;
         return;
       }
+      if (!archiveTerminalSupported()) {
+        useFallback();
+        return;
+      }
+      dispose?.();
       dispose = mountArchiveTerminal(root);
+      if (fallback) fallback.hidden = true;
     } catch (error) {
-      console.error('[archive] 终端启动失败，已改用列表视图', error);
-      root.dataset.state = 'off';
+      console.error('[archive] 终端启动失败，已显示文章列表入口', error);
+      useFallback();
+    } finally {
+      booting.delete(root);
     }
   };
 
+  // after-swap 在 ClientRouter 换页后、page-load 前触发：此时 <html> 的
+  // js 类可能刚被补回，容器已有尺寸，挂载能得到正确的画布分辨率。
+  document.addEventListener('astro:after-swap', boot);
   document.addEventListener('astro:page-load', boot);
-  // 离开页面前释放 WebGL 上下文（ClientRouter 切页不会刷新页面）
-  document.addEventListener('astro:before-preparation', () => {
-    dispose?.();
-    dispose = undefined;
-  });
+  document.addEventListener('astro:before-preparation', teardown);
 </script>

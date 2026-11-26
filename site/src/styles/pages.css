@@ -2485,8 +2485,7 @@
 
 /* ---------- 订阅转换（/services/subconverter/） ---------- */
 
-.subconv-page [hidden],
-.subconv-qr-modal[hidden] { display: none !important; }
+.subconv-page [hidden] { display: none !important; }
 
 .subconv-lead {
   max-width: 760px;
@@ -2570,7 +2569,7 @@
 .subconv-field textarea:focus,
 .subconv-field select:focus {
   border-color: var(--accent);
-  background: var(--bg-panel);
+  background-color: var(--bg-panel); /* 只换底色：用 background 简写会把 select 的箭头图标一起清掉 */
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 .subconv-field textarea {
@@ -2926,26 +2925,15 @@
   font-family: var(--font-mono);
 }
 
-/* 二维码弹窗 */
-.subconv-qr-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  display: grid;
-  place-items: center;
-  padding: var(--sp-4);
-}
-.subconv-qr-backdrop {
-  position: absolute;
-  inset: 0;
+/* 二维码弹窗：原生 <dialog>（showModal 自带焦点陷阱、Esc 关闭、顶层渲染） */
+.subconv-qr-dialog::backdrop {
   background: rgba(8, 20, 28, 0.58);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
 .subconv-qr-dialog {
-  position: relative;
-  z-index: 1;
-  width: min(360px, 100%);
+  color: var(--text);
+  width: min(360px, calc(100% - 32px));
   max-height: calc(100vh - 32px);
   overflow: auto;
   padding: 20px;
@@ -2980,11 +2968,138 @@
   word-break: break-all;
 }
 
+/* ---- 2026-11-25 新增 ---- 警告/错误文字色：随明暗主题切换，保证对比度 ≥ 4.5:1 */
+[data-subconv] { --sc-warn: #8a5a12; --sc-danger: #b3261e; }
+html[data-theme="dark"] [data-subconv] { --sc-warn: #e8b65a; --sc-danger: #ff7a70; }
+/* ---- 2026-11-25 新增：优选器卡片 / 按订阅 Provider / CF 优选替换 / 结构化诊断 ---- */
+a.subconv-status-meta { color: var(--text-faint); text-decoration: none; }
+a.subconv-status-meta:hover { color: var(--accent-deep); }
+.subconv-banner {
+  margin: calc(-1 * var(--sp-3)) 0 var(--sp-4);
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, #d6a23b 55%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, #d6a23b 12%, transparent);
+  font-size: 0.8rem;
+  color: var(--text);
+}
+.subconv-banner.is-danger {
+  border-color: color-mix(in srgb, #d6433b 60%, transparent);
+  background: color-mix(in srgb, #d6433b 12%, transparent);
+}
+.subconv-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.subconv-label-row > label { font-size: 0.84rem; font-weight: 700; color: var(--text); }
+.subconv-import { display: flex; gap: 8px; }
+.subconv-import input { flex: 1; min-width: 0; }
+.subconv-input-stats { font-family: var(--font-mono); }
+.subconv-input-stats.is-warn { color: var(--sc-warn); }
+.subconv-hint-warn { color: var(--sc-warn); }
+.subconv-hint-tight { margin: 1.6em 0 0; }
+
+/* 优选器提示卡：沿用面板描边 + 左侧强调条 */
+.subconv-callout {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px 16px 14px 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent-soft) 10%, var(--bg-panel));
+}
+.subconv-callout h2 { margin: 4px 0 6px; font-size: 1rem; }
+.subconv-callout p { margin: 0 0 6px; font-size: 0.84rem; line-height: 1.75; color: var(--text-dim); }
+.subconv-callout p strong { color: var(--text); }
+.subconv-callout code { font-family: var(--font-mono); font-size: 0.8em; color: var(--accent-deep); }
+.subconv-callout-actions { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; align-items: stretch; }
+.subconv-callout-actions a { text-align: center; text-decoration: none; }
+.subconv-callout-more summary { cursor: pointer; font-size: 0.8rem; color: var(--accent-deep); }
+.subconv-callout-more ol { margin: 6px 0; padding-left: 1.3em; font-size: 0.8rem; line-height: 1.75; color: var(--text-dim); }
+.subconv-callout-small { font-size: 0.72rem !important; color: var(--text-faint) !important; }
+.subconv-callout-mini {
+  margin: 4px 0 8px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-soft) 10%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+.subconv-callout-mini strong { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; color: var(--accent-deep); }
+.subconv-callout-mini a { color: var(--accent-deep); }
+
+/* 按订阅 Provider 设置行 */
+.subconv-provider-list { display: flex; flex-direction: column; gap: 8px; }
+.subconv-provider-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+  gap: 8px;
+  align-items: center;
+}
+.subconv-provider-row input,
+.subconv-provider-row select {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+}
+.subconv-provider-row select:disabled { opacity: 0.45; }
+.subconv-provider-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-dim); }
+
+/* CF 优选替换 */
+.subconv-toggle-strong span { font-weight: 700; }
+.subconv-field-check { justify-content: flex-end; gap: 8px; }
+.subconv-warnings {
+  margin: 0;
+  padding: 8px 12px 8px 28px;
+  border: 1px solid color-mix(in srgb, #d6a23b 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, #d6a23b 8%, transparent);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--text-dim);
+}
+.subconv-table-wrap { overflow-x: auto; }
+.subconv-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+.subconv-table caption { caption-side: top; text-align: left; padding: 4px 0; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.08em; color: var(--text-faint); }
+.subconv-table th, .subconv-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.subconv-table th { font-weight: 700; color: var(--text-dim); }
+.subconv-table td:last-child { white-space: normal; }
+
+/* 诊断：参数状态徽章 / 请求 ID */
+.subconv-badge { font-weight: 700; }
+.subconv-badge.is-ignored, .subconv-badge.is-fallback, .subconv-badge.is-unsupported { color: var(--sc-warn); }
+.subconv-badge.is-unrecognized { color: var(--sc-danger); }
+.subconv-badge.is-overridden { color: var(--accent-deep); }
+.subconv-raw summary { cursor: pointer; font-size: 0.78rem; color: var(--text-faint); }
+.subconv-stat.is-click { cursor: pointer; }
+.subconv-stat.is-click:hover { color: var(--accent-deep); }
+.subconv-reqid { margin-left: 10px; padding: 0; border: 0; background: none; font: inherit; font-family: var(--font-mono); font-size: 0.75em; color: inherit; opacity: 0.8; cursor: pointer; text-decoration: underline dotted; }
+.subconv-error { white-space: pre-wrap; }
+.subconv-guide { margin: 0; }
+.subconv-preview-actions { display: inline-flex; gap: 8px; }
+.subconv-toggle.is-disabled { opacity: 0.55; }
+.subconv-toggle em { font-style: normal; font-size: 0.85em; color: var(--text-faint); }
+.subconv-remember { margin-top: var(--sp-2); }
+
+@media (pointer: coarse) {
+  .subconv-mini-btn { min-height: 40px; }
+}
+
 @media (max-width: 760px) {
   .subconv-grid-2 { grid-template-columns: minmax(0, 1fr); }
   .subconv-card-grid { grid-template-columns: minmax(0, 1fr); }
   .subconv-status { font-size: 0.68rem; }
   .subconv-preview { font-size: 0.7rem; }
+  .subconv-callout { flex-direction: column; }
+  .subconv-callout-actions { width: 100%; }
+  .subconv-provider-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .subconv-provider-url { grid-column: 1 / -1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2992,4 +3107,159 @@
   .subconv-btn,
   .subconv-dot { transition: none; }
   .subconv-btn.is-loading::after { animation-duration: 2s; }
+}
+
+/* ============ 订阅转换：可定制下拉框（appearance: base-select） ============
+ * Chromium 135+ 支持后，原生 <select> 的弹出面板也能用 CSS 绘制：
+ * 毛玻璃浮层 + 分组小标题 + 选中勾 + 展开动效；键盘操作和读屏行为仍是原生的。
+ * 不支持的浏览器（Firefox / Safari）整段忽略，保持上面的原生样式。 */
+@supports (appearance: base-select) {
+  [data-subconv] select,
+  [data-subconv] ::picker(select) {
+    appearance: base-select;
+  }
+
+  [data-subconv] select {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-image: none;
+  }
+  [data-subconv] select:hover:not(:disabled) { border-color: var(--line-strong); }
+  [data-subconv] select:open {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  /* 右侧箭头：展开时翻转 */
+  [data-subconv] select::picker-icon {
+    content: '';
+    width: 13px;
+    height: 13px;
+    margin-left: auto;
+    background: var(--text-faint);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+    transition: rotate 0.28s var(--ease), background-color 0.2s var(--ease);
+  }
+  [data-subconv] select:open::picker-icon {
+    rotate: 180deg;
+    background: var(--accent);
+  }
+
+  /* 弹出面板：毛玻璃浮层，宽度跟内容走，不再横跨整行 */
+  [data-subconv] ::picker(select) {
+    min-inline-size: max(220px, min(anchor-size(self-inline), 280px));
+    max-inline-size: min(420px, calc(100vw - 32px));
+    max-block-size: min(440px, 62vh);
+    margin-block: 6px;
+    padding: 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--bg-panel) 84%, transparent);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    box-shadow:
+      0 22px 48px -18px rgba(20, 60, 80, 0.38),
+      0 2px 6px rgba(20, 60, 80, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    color: var(--text);
+    /* 展开/收起动效（display / overlay 需要 allow-discrete 才能参与过渡） */
+    opacity: 0;
+    translate: 0 -6px;
+    scale: 0.98;
+    transform-origin: top center;
+    transition:
+      opacity 0.18s var(--ease),
+      translate 0.22s var(--ease),
+      scale 0.22s var(--ease),
+      display 0.22s allow-discrete,
+      overlay 0.22s allow-discrete;
+  }
+  [data-subconv] select:open::picker(select) {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+  @starting-style {
+    [data-subconv] select:open::picker(select) {
+      opacity: 0;
+      translate: 0 -6px;
+      scale: 0.98;
+    }
+  }
+  /* 空间不够时向上弹出 */
+  [data-subconv] ::picker(select) { position-try-fallbacks: flip-block; }
+
+  /* 分组小标题：等宽小字 + 细分隔线 */
+  [data-subconv] optgroup {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+    padding: 0;
+  }
+  [data-subconv] optgroup + optgroup {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--line);
+  }
+  [data-subconv] optgroup::before,
+  [data-subconv] optgroup > legend { padding: 6px 10px 4px; }
+
+  /* 选项 */
+  [data-subconv] option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    font-family: var(--font-body);
+    font-size: 0.84rem;
+    font-weight: 400;
+    letter-spacing: normal;
+    color: var(--text);
+    cursor: pointer;
+    transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
+  }
+  [data-subconv] option:hover,
+  [data-subconv] option:focus-visible {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    outline: none;
+  }
+  [data-subconv] option:checked {
+    color: var(--accent-deep);
+    font-weight: 600;
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+  }
+  [data-subconv] option:disabled { opacity: 0.45; cursor: not-allowed; }
+  /* 选中勾放右侧 */
+  [data-subconv] option::checkmark {
+    order: 1;
+    margin-left: auto;
+    content: '';
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5 10 17 19 7'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+
+  /* 按钮里显示的选中项：不带勾、不加粗 */
+  [data-subconv] select selectedcontent { font-weight: inherit; color: inherit; }
+
+  /* 小号 Provider 行里的下拉框 */
+  [data-subconv] .subconv-provider-row select { gap: 6px; }
+  [data-subconv] .subconv-provider-row select::picker-icon { width: 11px; height: 11px; }
+}
+
+:root[data-theme='dark'] [data-subconv] ::picker(select),
+[data-theme='dark'] [data-subconv] ::picker(select) {
+  box-shadow:
+    0 22px 48px -16px rgba(0, 0, 0, 0.6),
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }

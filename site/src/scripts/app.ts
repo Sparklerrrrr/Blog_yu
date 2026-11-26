@@ -207,7 +207,8 @@
     if (hash) {
       const panel = document.getElementById(hash)?.querySelector('.panel.reveal-x');
       if (panel) {
-        panel.classList.remove('is-in');
+        // reveal-instant（入场已完成 / 由页面切换代为入场）会屏蔽显现动画，这里是有意重放，一并去掉
+        panel.classList.remove('is-in', 'reveal-instant');
         void panel.offsetWidth; // 强制 reflow，让动画重新触发
         panel.classList.add('is-in');
       }
@@ -921,4 +922,156 @@
   };
   init();
   document.addEventListener('astro:page-load', init);
+
+  // ===== 页面切换（ClientRouter）：配合 tokens.css 的导航过渡 =====
+
+  // 1) 新页截图之前（after-swap 在 view transition 的更新回调里同步执行）把视觉状态一次对齐，
+  //    否则这些状态要等 page-load（截图之后）才补上，过渡中会先错一下再跳：
+  //    - 顶栏毛玻璃 / 进度条宽度（后退时滚动位置已在此刻恢复）
+  //    - 暗色主题下的太阳图标
+  //    - 首屏内的 .reveal/.reveal-x 直接视为已显现，由页面切换动画负责入场，不再「先空白再弹出」
+  document.addEventListener('astro:after-swap', () => {
+    syncScroll();
+    syncThemeIcon();
+    if (document.body.classList.contains('archive-page')) return;
+    const vh = window.innerHeight;
+    const pending = Array.from(
+      document.querySelectorAll<HTMLElement>('main .reveal:not(.is-in), main .reveal-x:not(.is-in)')
+    );
+    // 先统一读布局，再统一写 class，避免读写交错的强制重排
+    const visible = pending.filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top < vh && r.bottom > 0;
+    });
+    visible.forEach((el) => el.classList.add('is-in', 'reveal-instant'));
+  });
+
+  // 1b) 显现动画播完（或被打断）就把元素钉成「已入场」：
+  //     动画写在 .is-in 上，元素被 display:none 再显示、或被 appendChild 重新排序时（友链筛选/打乱等）
+  //     CSS 动画会从头再播一遍，带着 --reveal-delay 的错开延迟，看起来像整页重新入场。
+  //     animationend / animationcancel 会冒泡，在 document 上监听一次即可。
+  const settleReveal = (e: AnimationEvent) => {
+    if (e.animationName !== 'reveal-up' && e.animationName !== 'reveal-left') return;
+    const el = e.target as HTMLElement;
+    if (el.classList.contains('is-in')) el.classList.add('reveal-instant');
+  };
+  document.addEventListener('animationend', settleReveal);
+  document.addEventListener('animationcancel', settleReveal);
+
+  // 2) 旧页截图之前收起浮层，旧页画面干净；READ FULL TEXT 以外的导航清掉残留的 read-nav
+  document.addEventListener('astro:before-preparation', () => {
+    document.querySelectorAll('[data-dropdown].open').forEach((d) => {
+      d.classList.remove('open');
+      d.querySelector('[data-dropdown-trigger]')?.setAttribute('aria-expanded', 'false');
+    });
+    q('#search-panel')?.classList.remove('open');
+    q('#music-popup')?.classList.remove('open');
+    q('#mobile-menu')?.setAttribute('hidden', '');
+    q('#menu-toggle')?.setAttribute('aria-expanded', 'false');
+    document.getElementById('lightbox')?.remove();
+    const moment = document.querySelector<HTMLElement>('.moment-lightbox');
+    if (moment) moment.hidden = true;
+    document.documentElement.style.overflow = '';
+    try {
+      if (sessionStorage.getItem('blogyu:read-nav') !== '1') document.documentElement.classList.remove('read-nav');
+    } catch {
+      /* 忽略 */
+    }
+  });
+
+  // 3) 悬停预取：指针停在站内链接上约 65ms 就开始下载目标页，点击时直接复用，省掉整段网络等待。
+  //    Astro 自带的预取依赖 HTTP 缓存，HTML 不可缓存时导航会再请求一遍（dev server、多数静态托管），
+  //    所以这里自己缓存响应，并在 before-preparation 里让默认 loader 复用它（解析、样式预加载等仍走 Astro）。
+  //    不预取：下载链接、新窗口、外站、带文件扩展名的资源（zip/mp3/xml…）、当前页、显式 data-astro-prefetch="false"。
+  const PAGE_CACHE_TTL = 30_000;
+  const pageCache = new Map<string, { at: number; res: Promise<Response | null> }>();
+  const pageKey = (u: URL) => u.origin + u.pathname + u.search;
+  const prefetchTarget = (a: HTMLAnchorElement): URL | null => {
+    if (a.target && a.target !== '_self') return null;
+    if (a.hasAttribute('download') || a.hasAttribute('data-astro-reload')) return null;
+    if (a.dataset.astroPrefetch === 'false') return null;
+    let u: URL;
+    try {
+      u = new URL(a.href, location.href);
+    } catch {
+      return null;
+    }
+    if (u.origin !== location.origin) return null;
+    if (u.pathname === location.pathname && u.search === location.search) return null;
+    if (/\.[a-z0-9]{1,5}$/i.test(u.pathname) && !/\.html?$/i.test(u.pathname)) return null;
+    return u;
+  };
+  const saveData = () => {
+    const c = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    return !!c && (c.saveData === true || /(^|-)2g$/.test(c.effectiveType ?? ''));
+  };
+  const warmPage = (a: Element | null) => {
+    if (!(a instanceof HTMLAnchorElement)) return;
+    if (saveData()) return; // 省流量模式 / 2G：不预取
+    const u = prefetchTarget(a);
+    if (!u) return;
+    const key = pageKey(u);
+    const hit = pageCache.get(key);
+    if (hit && performance.now() - hit.at < PAGE_CACHE_TTL) return;
+    const res = fetch(key, { credentials: 'same-origin' })
+      .then((r) => (r.ok && (r.headers.get('content-type') ?? '').includes('text/html') ? r : null))
+      .catch(() => null);
+    pageCache.set(key, { at: performance.now(), res });
+    if (pageCache.size > 24) pageCache.delete(pageCache.keys().next().value as string);
+  };
+  // 只对鼠标/触控笔做悬停与按下预取：触屏上滑动列表时手指起点落在哪张卡片都会触发，
+  // 会白白下载一串页面。触屏的点按由导航本身去取，代价只是少了这段提前量。
+  const isHoverPointer = (e: PointerEvent) => e.pointerType === 'mouse' || e.pointerType === 'pen';
+  let hoverTimer = 0;
+  document.addEventListener(
+    'pointerover',
+    (e) => {
+      if (!isHoverPointer(e)) return;
+      const a = (e.target as Element | null)?.closest?.('a[href]') ?? null;
+      window.clearTimeout(hoverTimer);
+      if (a) hoverTimer = window.setTimeout(() => warmPage(a), 65);
+    },
+    { passive: true }
+  );
+  // 键盘聚焦 / 鼠标左键按下（无修饰键）：立刻预取，点击到导航开始之间也能抢出一段时间
+  const linkOf = (e: Event) => (e.target as Element | null)?.closest?.('a[href]') ?? null;
+  document.addEventListener('focusin', (e) => warmPage(linkOf(e)));
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (!isHoverPointer(e) || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+      warmPage(linkOf(e));
+    },
+    { passive: true }
+  );
+
+  document.addEventListener('astro:before-preparation', (event) => {
+    const e = event as Event & { to: URL; loader: () => Promise<void>; formData?: FormData };
+    if (e.formData) return;
+    const key = pageKey(e.to);
+    const hit = pageCache.get(key);
+    if (!hit) return;
+    pageCache.delete(key); // 只用一次，下次访问重新取最新内容
+    if (performance.now() - hit.at > PAGE_CACHE_TTL) return;
+    const loader = e.loader;
+    e.loader = async () => {
+      const realFetch = window.fetch;
+      let used = false;
+      window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const href = input instanceof Request ? input.url : String(input);
+        const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
+        if (!used && method === 'GET' && pageKey(new URL(href, location.href)) === key) {
+          used = true;
+          const res = await hit.res;
+          if (res) return res.clone();
+        }
+        return realFetch(input, init);
+      };
+      try {
+        await loader();
+      } finally {
+        window.fetch = realFetch;
+      }
+    };
+  });
     
