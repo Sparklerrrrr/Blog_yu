@@ -1,6 +1,6 @@
 # BLOG_YU · 家玉的小站（site/）
 
-鹰角 / 明日方舟风格的 Astro 个人博客，v2.2.1。整体冰川蓝浅色主题 + 暗色冰川皮肤切换。
+鹰角 / 明日方舟风格的 Astro 个人博客，v2.3.0。整体冰川蓝浅色主题 + 暗色冰川皮肤切换。
 
 设计参考：ak.hypergryph.com（导航板块与横向过渡）、blog.myqfeng.top（导航布局、搜索面板、音乐播放器 UI）、070219.xyz（选中高亮）、deepseek.com/harness（版块透明度与 hover 发光）。
 
@@ -91,7 +91,7 @@ EXCLUDE_DIRS = {'node_modules', 'dist', '.astro', '.git',
                 'public/music', 'public/gallery', 'public/wallpapers',
                 'public/sponsor', 'public/resources', 'public/icons'}
 EXCLUDE_FILES = {'pm2-watchdog.sh'}
-with zipfile.ZipFile('public/resources/blog-yu-source-v2.2.1.zip', 'w', zipfile.ZIP_DEFLATED, 9) as z:
+with zipfile.ZipFile('public/resources/blog-yu-source-v2.3.0.zip', 'w', zipfile.ZIP_DEFLATED, 9) as z:
     for root, dirs, files in os.walk('.'):
         rel = os.path.relpath(root, '.').replace(os.sep, '/')
         rel = '' if rel == '.' else rel
